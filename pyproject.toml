@@ -1,0 +1,27 @@
+[project]
+name = "jotta-gui"
+version = "0.1.0"
+description = "A graphical user interface for jotta-cli."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pyside6>=6.11.1",
+]
+
+[project.scripts]
+jotta-gui = "jotta_gui.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "qt: tests that require PySide6/Qt",
+]

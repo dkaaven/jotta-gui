@@ -1,0 +1,10 @@
+# Cache
+.venv
+__pycache__
+uv.lock
+
+
+# Temp
+*.txt
+temp/
+get*.sh

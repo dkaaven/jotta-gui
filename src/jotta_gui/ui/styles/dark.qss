@@ -1,0 +1,142 @@
+QWidget {
+    background-color: #111318;
+    color: #e8eaf0;
+    font-size: 14px;
+}
+
+QMainWindow {
+    background-color: #111318;
+}
+
+QWidget#sidebar {
+    background-color: #171a21;
+    border-right: 1px solid #252a34;
+}
+
+QWidget#header {
+    background-color: #111318;
+    border-bottom: 1px solid #252a34;
+}
+
+QLabel {
+    background-color: transparent;
+}
+
+QLabel#sidebarTitle {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+QLabel#pageTitle {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+QLabel#pageSubtitle,
+QLabel#mutedText,
+QLabel#cardTitle,
+QLabel#cardSubtitle {
+    color: #8b93a1;
+}
+
+QLabel#overviewUser {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+QLabel#sectionTitle {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+QLabel#syncRoot {
+    color: #c7cad1;
+}
+
+QFrame#metricCard,
+QFrame#backupRow {
+    background-color: #191d25;
+    border: 1px solid #292f3a;
+    border-radius: 12px;
+}
+
+QFrame#backupRow {
+    border-radius: 9px;
+}
+
+QLabel#cardTitle,
+QLabel#cardSubtitle {
+    font-size: 13px;
+}
+
+QLabel#cardValue {
+    color: #f2f3f5;
+    font-size: 26px;
+    font-weight: 700;
+}
+
+QLabel#backupName {
+    font-weight: 600;
+}
+
+QPushButton {
+    background-color: transparent;
+    border: 1px solid #292f3a;
+    border-radius: 7px;
+    padding: 9px 12px;
+}
+
+QPushButton:hover:enabled {
+    background-color: #232832;
+}
+
+QPushButton:pressed:enabled {
+    background-color: #2c323d;
+}
+
+QPushButton:disabled {
+    color: #616875;
+    border-color: #222731;
+}
+
+QPushButton#navButton {
+    border: none;
+    text-align: left;
+}
+
+QPushButton#navButton:checked {
+    background-color: #252b38;
+    color: #ffffff;
+}
+
+QPushButton#primaryButton {
+    background-color: #6173e8;
+    border-color: #6173e8;
+    color: white;
+    font-weight: 600;
+}
+
+QPushButton#primaryButton:hover:enabled {
+    background-color: #7182ef;
+}
+
+QProgressBar#storageProgress,
+QProgressBar#diskProgress {
+    min-height: 9px;
+    max-height: 9px;
+    background-color: #252a34;
+    border: none;
+    border-radius: 4px;
+}
+
+QProgressBar#storageProgress::chunk,
+QProgressBar#diskProgress::chunk {
+    background-color: #6173e8;
+    border-radius: 4px;
+}
+
+QScrollArea,
+QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+    border: none;
+}
