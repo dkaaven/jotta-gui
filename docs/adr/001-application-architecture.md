@@ -1,4 +1,5 @@
 
+
 # ADR-0001: Feature-oriented layered architecture
 
 - Status: Accepted

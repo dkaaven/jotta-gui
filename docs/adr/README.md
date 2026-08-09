@@ -1,4 +1,5 @@
 
+
 # Architecture Decision Records
 
 ADRs record decisions that affect the long-term architecture of Jotta GUI.

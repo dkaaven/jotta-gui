@@ -1,3 +1,4 @@
+
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QMainWindow,
@@ -6,7 +7,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jotta_gui.application import ApplicationController, ApplicationState
+from jotta_gui.application.controller import ApplicationController
+from jotta_gui.application.state import ApplicationState
 from jotta_gui.ui.components import Header, Sidebar
 from jotta_gui.ui.pages import BackupPage, OverviewPage, SettingsPage, SyncPage
 

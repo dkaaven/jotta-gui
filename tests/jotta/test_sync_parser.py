@@ -1,3 +1,4 @@
+
 from jotta_gui.jotta.sync.models import SyncRuntimeState
 from jotta_gui.jotta.sync.parser import parse_sync_runtime_status
 

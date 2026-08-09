@@ -18,8 +18,40 @@ Run the application with:
 uv run jotta-gui
 ```
 
-Run tests with:
+## Testing
+
+Run the full test suite:
 
 ```bash
 uv run pytest
 ```
+
+Run only tests that do not require Qt:
+
+```bash
+uv run pytest -m "not qt"
+```
+
+Run only Qt-dependent controller, runner, and widget tests:
+
+```bash
+uv run pytest -m qt
+```
+
+The Qt tests use the offscreen platform automatically so they can run headlessly.
+
+### Captured CLI fixtures
+
+Capture sanitized output from the local CLI:
+
+```bash
+uv run python tools/capture_cli_fixtures.py linux-active --sync-state active
+```
+
+Run only tests backed by captured `jotta-cli` output:
+
+```bash
+uv run pytest -m captured
+```
+
+See `tests/fixtures/README.md` before committing captured fixtures.

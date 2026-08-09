@@ -1,4 +1,5 @@
 
+
 # Jotta GUI Architecture
 
 ## Purpose
@@ -106,5 +107,7 @@ tests/
 ## Testing
 
 Prioritize tests for parsers and Jotta behavior using captured CLI output.
+
+Sanitized captures live under `tests/fixtures/captured/`. Importable capture and sanitization logic lives in `jotta_gui/devtools/`; `tools/capture_cli_fixtures.py` is only a repository entry point. Captures include both structured and human-readable status output so parser behavior can be verified against real CLI responses.
 
 GUI tests can be added where widget behavior itself is important.

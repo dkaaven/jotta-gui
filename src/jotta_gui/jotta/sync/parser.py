@@ -1,3 +1,4 @@
+
 from jotta_gui.jotta.sync.models import SyncRuntimeState, SyncRuntimeStatus
 
 

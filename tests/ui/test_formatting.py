@@ -1,3 +1,4 @@
+
 import pytest
 
 from jotta_gui.ui.formatting import format_bytes, format_percent

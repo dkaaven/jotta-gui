@@ -1,4 +1,9 @@
-from jotta_gui.jotta.runner import JottaRunner
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from jotta_gui.jotta.runner import JottaRunner
 
 
 def ignores_list(runner: JottaRunner, backup: str) -> None:

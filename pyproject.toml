@@ -24,4 +24,5 @@ dev = [
 testpaths = ["tests"]
 markers = [
     "qt: tests that require PySide6/Qt",
+    "captured: tests that validate captured jotta-cli output",
 ]
