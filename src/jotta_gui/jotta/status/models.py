@@ -26,6 +26,7 @@ class FileCount:
 @dataclass(frozen=True, slots=True)
 class SyncInfo:
     enabled: bool
+    automatic: bool | None
     root_path: str
     local: FileCount
     remote: FileCount

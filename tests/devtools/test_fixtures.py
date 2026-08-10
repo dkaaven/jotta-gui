@@ -56,7 +56,7 @@ def test_sanitize_capture_redacts_unexpected_runtime_email(status_payload: dict)
     assert "user@example.com" in sanitized.runtime
 
 
-def test_write_capture_creates_complete_fixture(
+def test_write_capture_creates_schema_two_metadata(
     tmp_path: Path,
     status_payload: dict,
 ) -> None:
@@ -71,7 +71,9 @@ def test_write_capture_creates_complete_fixture(
     destination = write_capture(
         "Linux Active",
         capture,
-        expected_sync_state="active",
+        scenario="automatic-listening",
+        expected_sync_mode="automatic",
+        expected_runtime_state="listening",
         output_root=tmp_path,
     )
 
@@ -80,8 +82,10 @@ def test_write_capture_creates_complete_fixture(
     assert (destination / "runtime.txt").is_file()
 
     metadata = json.loads((destination / "metadata.json").read_text())
-    assert metadata["schema"] == 1
-    assert metadata["expected_sync_state"] == "active"
+    assert metadata["schema"] == 2
+    assert metadata["scenario"] == "automatic-listening"
+    assert metadata["expected_sync_mode"] == "automatic"
+    assert metadata["expected_runtime_state"] == "listening"
 
 
 def test_write_capture_rejects_unsafe_name(
@@ -91,7 +95,7 @@ def test_write_capture_rejects_unsafe_name(
     capture = Capture(status=status_payload, runtime="", replacements={})
 
     with pytest.raises(ValueError):
-        write_capture("../outside", capture, None, output_root=tmp_path)
+        write_capture("../outside", capture, output_root=tmp_path)
 
 
 def test_main_captures_and_writes_fixture(
@@ -109,8 +113,12 @@ def test_main_captures_and_writes_fixture(
     result = main(
         [
             "Linux Active",
-            "--sync-state",
-            "active",
+            "--scenario",
+            "automatic-listening",
+            "--sync-mode",
+            "automatic",
+            "--runtime-state",
+            "listening",
             "--output-root",
             str(tmp_path),
         ]
@@ -118,6 +126,7 @@ def test_main_captures_and_writes_fixture(
 
     assert result == 0
     destination = tmp_path / "linux-active"
-    assert (destination / "status.json").is_file()
-    assert (destination / "runtime.txt").is_file()
-    assert (destination / "metadata.json").is_file()
+    metadata = json.loads((destination / "metadata.json").read_text())
+    assert metadata["schema"] == 2
+    assert metadata["expected_sync_mode"] == "automatic"
+    assert metadata["expected_runtime_state"] == "listening"

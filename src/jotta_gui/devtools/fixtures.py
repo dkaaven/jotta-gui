@@ -29,7 +29,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     destination = write_capture(
         name=args.name,
         capture=capture,
-        expected_sync_state=args.sync_state,
+        scenario=args.scenario,
+        expected_sync_mode=args.sync_mode,
+        expected_runtime_state=args.runtime_state,
         output_root=args.output_root,
     )
 
@@ -109,7 +111,9 @@ def sanitize_runtime(output: str, replacements: dict[str, str]) -> str:
 def write_capture(
     name: str,
     capture: Capture,
-    expected_sync_state: str | None,
+    scenario: str | None = None,
+    expected_sync_mode: str | None = None,
+    expected_runtime_state: str | None = None,
     output_root: Path = DEFAULT_FIXTURE_ROOT,
 ) -> Path:
     destination = output_root / safe_name(name)
@@ -123,8 +127,10 @@ def write_capture(
     (destination / "metadata.json").write_text(
         json.dumps(
             {
-                "schema": 1,
-                "expected_sync_state": expected_sync_state,
+                "schema": 2,
+                "scenario": scenario,
+                "expected_sync_mode": expected_sync_mode,
+                "expected_runtime_state": expected_runtime_state,
                 "commands": {
                     "status": "jotta-cli status --json",
                     "runtime": "jotta-cli status",
@@ -198,10 +204,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("name", help="Fixture name, for example 'linux-active'")
     parser.add_argument(
-        "--sync-state",
-        choices=("active", "inactive", "unknown"),
+        "--scenario",
         default=None,
-        help="Known Sync runtime state while the fixture is captured.",
+        help="Human-readable scenario name for the capture.",
+    )
+    parser.add_argument(
+        "--sync-mode",
+        choices=("automatic", "triggered", "unknown"),
+        default=None,
+        help="Expected configured Sync mode from status --json.",
+    )
+    parser.add_argument(
+        "--runtime-state",
+        choices=("listening", "triggered", "unknown"),
+        default=None,
+        help="Expected activity observation from human-readable status.",
     )
     parser.add_argument("--binary", default="jotta-cli")
     parser.add_argument(

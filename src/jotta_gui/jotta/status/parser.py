@@ -34,6 +34,7 @@ def parse_status(data: dict[str, Any]) -> JottaStatus:
 
     sync = SyncInfo(
         enabled=sync_data["Enabled"],
+        automatic=sync_data.get("Automatic"),
         root_path=sync_data["RootPath"],
         local=_file_count(sync_data.get("Count")),
         remote=_file_count(sync_data.get("RemoteCount")),

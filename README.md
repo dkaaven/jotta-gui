@@ -2,6 +2,9 @@
 
 A PySide6 desktop interface for `jotta-cli`.
 
+This is my playground to test and learn. I use ChatGPT to support me on this journey.
+You are free to copy and play around on your own.
+
 The application uses a layered architecture:
 
 ```text

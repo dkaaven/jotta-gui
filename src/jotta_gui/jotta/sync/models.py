@@ -1,11 +1,10 @@
-
 from dataclasses import dataclass
 from enum import StrEnum
 
 
 class SyncRuntimeState(StrEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
+    LISTENING = "listening"
+    TRIGGERED = "triggered"
     UNKNOWN = "unknown"
 
 
@@ -13,3 +12,4 @@ class SyncRuntimeState(StrEnum):
 class SyncRuntimeStatus:
     state: SyncRuntimeState
     mode: str | None = None
+    status: str | None = None

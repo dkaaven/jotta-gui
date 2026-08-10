@@ -1,10 +1,15 @@
-
 from dataclasses import replace
 import logging
 
 from PySide6.QtCore import QObject, Signal
 
-from jotta_gui.application.state import ApplicationState, SyncState
+from jotta_gui.application.state import (
+    ApplicationState,
+    SyncActivity,
+    SyncMode,
+    SyncOperation,
+    sync_mode_from_automatic,
+)
 from jotta_gui.jotta.runner import JottaRunner
 from jotta_gui.jotta.status.get import get_status
 from jotta_gui.jotta.status.parser import parse_status_output
@@ -35,15 +40,15 @@ class ApplicationController(QObject):
         get_status(self.runner)
 
     def start_sync(self) -> None:
-        self._set_state(sync_state=SyncState.STARTING, error_message=None)
+        self._set_state(sync_operation=SyncOperation.STARTING, error_message=None)
         sync_start(self.runner)
 
     def stop_sync(self) -> None:
-        self._set_state(sync_state=SyncState.STOPPING, error_message=None)
+        self._set_state(sync_operation=SyncOperation.STOPPING, error_message=None)
         sync_stop(self.runner)
 
     def trigger_sync(self) -> None:
-        self._set_state(sync_state=SyncState.SYNCING, error_message=None)
+        self._set_state(sync_operation=SyncOperation.TRIGGERING, error_message=None)
         sync_trigger(self.runner)
 
     def _handle_completed(self, command: str, output: str) -> None:
@@ -76,7 +81,10 @@ class ApplicationController(QObject):
             connected=True,
             status=status,
             disk_usage=disk_usage,
-            sync_state=SyncState.UNKNOWN,
+            sync_mode=sync_mode_from_automatic(status.sync.automatic),
+            sync_operation=SyncOperation.IDLE,
+            sync_activity=SyncActivity.UNKNOWN,
+            sync_activity_status=None,
             error_message=None,
         )
 
@@ -88,15 +96,20 @@ class ApplicationController(QObject):
             return
 
         runtime = parse_sync_runtime_status(output, status.sync.root_path)
-        state_map = {
-            SyncRuntimeState.ACTIVE: SyncState.ACTIVE,
-            SyncRuntimeState.INACTIVE: SyncState.INACTIVE,
-            SyncRuntimeState.UNKNOWN: SyncState.UNKNOWN,
+        activity_map = {
+            SyncRuntimeState.LISTENING: SyncActivity.LISTENING,
+            SyncRuntimeState.TRIGGERED: SyncActivity.TRIGGERED,
+            SyncRuntimeState.UNKNOWN: SyncActivity.UNKNOWN,
         }
-        self._set_state(sync_state=state_map[runtime.state])
+        self._set_state(
+            sync_activity=activity_map[runtime.state],
+            sync_activity_status=runtime.status,
+        )
 
         if runtime.mode:
             logger.info("Sync runtime mode: %s", runtime.mode)
+        if runtime.status:
+            logger.info("Sync runtime status: %s", runtime.status)
 
     def _handle_error(self, command: str, message: str) -> None:
         logger.error("Jotta error [%s]: %s", command, message)
@@ -105,20 +118,24 @@ class ApplicationController(QObject):
         if command == "status":
             self._set_state(
                 connected=False,
-                sync_state=SyncState.UNKNOWN,
+                sync_mode=SyncMode.UNKNOWN,
+                sync_operation=SyncOperation.IDLE,
+                sync_activity=SyncActivity.UNKNOWN,
+                sync_activity_status=None,
                 error_message=message,
             )
             return
 
         if command == "sync_runtime_status":
             self._set_state(
-                sync_state=SyncState.UNKNOWN,
+                sync_activity=SyncActivity.UNKNOWN,
+                sync_activity_status=None,
                 error_message=message,
             )
             return
 
         self._set_state(
-            sync_state=SyncState.UNKNOWN,
+            sync_operation=SyncOperation.IDLE,
             error_message=message,
         )
         self.refresh()

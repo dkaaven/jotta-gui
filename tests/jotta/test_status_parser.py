@@ -13,12 +13,21 @@ def test_parse_status_output(status_payload: dict) -> None:
     assert status.user.fullname == "Example User"
     assert status.user.hostname == "workstation"
     assert status.user.account.capacity == 1_000_000
+    assert status.sync.automatic is None
     assert status.sync.local.files == 12
     assert status.sync.remote.bytes == 1_200
     assert status.sync.folder_count == 3
     assert status.sync.state is None
     assert status.backups[0].name == "Documents"
     assert status.backups[0].device_id == "device-1"
+
+
+def test_automatic_sync_flag_is_preserved(status_payload: dict) -> None:
+    status_payload["Sync"]["Automatic"] = True
+
+    status = parse_status(status_payload)
+
+    assert status.sync.automatic is True
 
 
 def test_missing_counts_default_to_zero(status_payload: dict) -> None:

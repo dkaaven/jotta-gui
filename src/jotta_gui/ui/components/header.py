@@ -1,8 +1,11 @@
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from jotta_gui.application.state import ApplicationState, SyncState
+from jotta_gui.application.state import (
+    ApplicationState,
+    SyncMode,
+    SyncOperation,
+)
 
 
 class Header(QWidget):
@@ -24,7 +27,7 @@ class Header(QWidget):
         self.connection = QLabel("● Disconnected")
         self.connection.setObjectName("connectionStatus")
 
-        self.sync_status = QLabel("● Sync unknown")
+        self.sync_status = QLabel("● Sync mode unknown")
         self.sync_status.setObjectName("syncStatus")
 
         status_layout = QVBoxLayout()
@@ -54,18 +57,30 @@ class Header(QWidget):
         else:
             self._set_status_label(self.connection, "● Disconnected", "#e66b6b")
 
-        sync_status = {
-            SyncState.ACTIVE: ("● Sync active", "#62c98a"),
-            SyncState.INACTIVE: ("● Sync inactive", "#e6a75f"),
-            SyncState.STARTING: ("● Starting sync…", "#6173e8"),
-            SyncState.STOPPING: ("● Stopping sync…", "#6173e8"),
-            SyncState.SYNCING: ("● Syncing now…", "#6173e8"),
-            SyncState.UNKNOWN: ("● Sync unknown", "#8b909a"),
-        }
-        text, color = sync_status[state.sync_state]
+        text, color = _sync_label(state)
         self._set_status_label(self.sync_status, text, color)
 
     @staticmethod
     def _set_status_label(label: QLabel, text: str, color: str) -> None:
         label.setText(text)
         label.setStyleSheet(f"color: {color}; font-weight: 600;")
+
+
+def _sync_label(state: ApplicationState) -> tuple[str, str]:
+    pending = {
+        SyncOperation.STARTING: ("● Starting sync…", "#6173e8"),
+        SyncOperation.STOPPING: ("● Stopping sync…", "#6173e8"),
+        SyncOperation.TRIGGERING: ("● Syncing now…", "#6173e8"),
+    }
+    if state.sync_operation in pending:
+        return pending[state.sync_operation]
+
+    if state.status is not None and not state.status.sync.enabled:
+        return "● Sync disabled", "#e66b6b"
+
+    modes = {
+        SyncMode.AUTOMATIC: ("● Automatic sync", "#62c98a"),
+        SyncMode.TRIGGERED: ("● Manual sync", "#e6a75f"),
+        SyncMode.UNKNOWN: ("● Sync mode unknown", "#8b909a"),
+    }
+    return modes[state.sync_mode]

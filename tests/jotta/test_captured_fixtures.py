@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from jotta_gui.application.state import SyncMode, sync_mode_from_automatic
 from jotta_gui.jotta.status.parser import parse_status_output
 from jotta_gui.jotta.sync.models import SyncRuntimeState
 from jotta_gui.jotta.sync.parser import parse_sync_runtime_status
@@ -20,10 +21,15 @@ def test_captured_status_fixtures_parse() -> None:
     for fixture_dir in fixture_dirs:
         output = (fixture_dir / "status.json").read_text(encoding="utf-8")
         status = parse_status_output(output)
+        metadata = _metadata(fixture_dir)
 
         assert status.user.email
         assert status.user.hostname
         assert status.sync.root_path
+
+        expected = metadata.get("expected_sync_mode")
+        if expected is not None:
+            assert sync_mode_from_automatic(status.sync.automatic) == SyncMode(expected), fixture_dir.name
 
 
 def test_captured_runtime_fixtures_parse() -> None:
@@ -39,14 +45,17 @@ def test_captured_runtime_fixtures_parse() -> None:
             (fixture_dir / "runtime.txt").read_text(encoding="utf-8"),
             status.sync.root_path,
         )
-        metadata = json.loads(
-            (fixture_dir / "metadata.json").read_text(encoding="utf-8")
-        )
-        expected = metadata.get("expected_sync_state")
+        metadata = _metadata(fixture_dir)
 
         assert isinstance(runtime.state, SyncRuntimeState)
+
+        expected = metadata.get("expected_runtime_state")
         if expected is not None:
             assert runtime.state == SyncRuntimeState(expected), fixture_dir.name
+
+
+def _metadata(fixture_dir: Path) -> dict:
+    return json.loads((fixture_dir / "metadata.json").read_text(encoding="utf-8"))
 
 
 def _capture_dirs() -> list[Path]:

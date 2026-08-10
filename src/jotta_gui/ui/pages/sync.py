@@ -1,4 +1,3 @@
-
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QGridLayout,
@@ -10,7 +9,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jotta_gui.application.state import ApplicationState, SyncState
+from jotta_gui.application.state import (
+    ApplicationState,
+    SyncActivity,
+    SyncMode,
+    SyncOperation,
+)
 from jotta_gui.ui.components import MetricCard
 from jotta_gui.ui.formatting import format_bytes
 
@@ -59,7 +63,7 @@ class SyncPage(QWidget):
         controls_title = QLabel("Sync controls")
         controls_title.setObjectName("sectionTitle")
 
-        self.runtime_status = QLabel("● Sync unknown")
+        self.runtime_status = QLabel("● Sync mode unknown")
         self.runtime_status.setObjectName("syncRuntimeStatus")
 
         self.start_button = QPushButton("Start sync")
@@ -120,16 +124,23 @@ class SyncPage(QWidget):
     def _update_runtime_label(self, state: ApplicationState) -> None:
         if state.status is not None and not state.status.sync.enabled:
             text, color = "● Sync disabled", "#e66b6b"
+        elif state.sync_operation == SyncOperation.STARTING:
+            text, color = "● Starting sync…", "#6173e8"
+        elif state.sync_operation == SyncOperation.STOPPING:
+            text, color = "● Stopping sync…", "#6173e8"
+        elif state.sync_operation == SyncOperation.TRIGGERING:
+            text, color = "● Syncing now…", "#6173e8"
+        elif state.sync_mode == SyncMode.AUTOMATIC:
+            text, color = "● Automatic sync enabled", "#62c98a"
+        elif state.sync_mode == SyncMode.TRIGGERED:
+            text, color = "● Manual sync mode", "#e6a75f"
         else:
-            values = {
-                SyncState.ACTIVE: ("● Sync active", "#62c98a"),
-                SyncState.INACTIVE: ("● Sync inactive", "#e6a75f"),
-                SyncState.STARTING: ("● Starting sync…", "#6173e8"),
-                SyncState.STOPPING: ("● Stopping sync…", "#6173e8"),
-                SyncState.SYNCING: ("● Syncing now…", "#6173e8"),
-                SyncState.UNKNOWN: ("● Sync unknown", "#8b909a"),
-            }
-            text, color = values[state.sync_state]
+            text, color = "● Sync mode unknown", "#8b909a"
+
+        if state.sync_activity_status:
+            text = f"{text} — {state.sync_activity_status}"
+        elif state.sync_activity == SyncActivity.LISTENING:
+            text = f"{text} — listening for changes"
 
         self.runtime_status.setText(text)
         self.runtime_status.setStyleSheet(f"color: {color}; font-weight: 600;")
@@ -140,18 +151,14 @@ class SyncPage(QWidget):
             self._set_controls(False, False, False)
             return
 
-        if state.sync_state in {
-            SyncState.STARTING,
-            SyncState.STOPPING,
-            SyncState.SYNCING,
-        }:
+        if state.sync_operation != SyncOperation.IDLE:
             self._set_controls(False, False, False)
-        elif state.sync_state == SyncState.ACTIVE:
+        elif state.sync_mode == SyncMode.AUTOMATIC:
             self._set_controls(False, True, False)
-        elif state.sync_state == SyncState.INACTIVE:
+        elif state.sync_mode == SyncMode.TRIGGERED:
             self._set_controls(True, False, True)
         else:
-            self._set_controls(True, True, True)
+            self._set_controls(False, False, False)
 
     def _set_controls(self, start: bool, stop: bool, trigger: bool) -> None:
         self.start_button.setEnabled(start)
