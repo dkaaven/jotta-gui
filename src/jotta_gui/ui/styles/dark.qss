@@ -208,3 +208,36 @@ QProgressBar#storageProgress::chunk {
 QScrollArea {
     border: none;
 }
+
+QFrame#ignorePresetRow {
+    background-color: #151922;
+    border: 1px solid #252b36;
+    border-radius: 8px;
+}
+
+QLabel#patternText {
+    color: #b9c2ff;
+    font-family: monospace;
+}
+
+QComboBox,
+QLineEdit,
+QPlainTextEdit {
+    background-color: #141820;
+    color: #e8eaf0;
+    border: 1px solid #303642;
+    border-radius: 7px;
+    padding: 7px 9px;
+    selection-background-color: #6173e8;
+}
+
+QComboBox:disabled,
+QLineEdit:disabled,
+QPlainTextEdit:disabled {
+    color: #626977;
+    border-color: #252a33;
+}
+
+QPlainTextEdit#ruleOutput {
+    font-family: monospace;
+}

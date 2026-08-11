@@ -15,6 +15,7 @@ from jotta_gui.jotta.status.query import request_status
 from jotta_gui.jotta.sync.control import start_sync, stop_sync, trigger_sync
 from jotta_gui.jotta.sync.query import request_sync_runtime_status
 from jotta_gui.jotta.sync.selective import list_selective_sync
+from jotta_gui.jotta.version import request_version
 
 
 class RecordingRunner:
@@ -29,6 +30,7 @@ class RecordingRunner:
     ("invoke", "expected"),
     [
         (lambda r: request_status(r), ("status", ["status", "--json"])),
+        (lambda r: request_version(r), ("version", ["version"])),
         (
             lambda r: request_sync_runtime_status(r),
             ("sync_runtime_status", ["status"]),

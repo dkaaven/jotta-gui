@@ -7,6 +7,7 @@ from jotta_gui.application.state import (
     ApplicationState,
     RefreshState,
     SyncOperation,
+    VersionCheckState,
 )
 
 
@@ -16,8 +17,14 @@ def test_application_state_defaults() -> None:
     assert state.connected is False
     assert state.snapshot is None
     assert state.disk_usage is None
+    assert state.version is None
+    assert state.version_check_state == VersionCheckState.IDLE
+    assert state.version_error is None
+    assert state.version_checking is False
     assert state.refresh_state == RefreshState.IDLE
     assert state.sync_operation == SyncOperation.IDLE
+    assert state.backup_ignores.backup_name is None
+    assert state.backup_ignores.busy is False
     assert state.error is None
     assert state.refreshing is False
     assert state.sync_busy is False
@@ -27,10 +34,12 @@ def test_application_state_reports_busy_properties() -> None:
     state = ApplicationState(
         refresh_state=RefreshState.REFRESHING,
         sync_operation=SyncOperation.TRIGGERING,
+        version_check_state=VersionCheckState.CHECKING,
     )
 
     assert state.refreshing is True
     assert state.sync_busy is True
+    assert state.version_checking is True
 
 
 def test_application_error_is_structured() -> None:

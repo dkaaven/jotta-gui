@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from jotta_gui.jotta.models import JottaSnapshot
+from jotta_gui.jotta.version import VersionInfo
 from jotta_gui.system.storage import DiskUsage
 
 
@@ -21,6 +22,40 @@ class SyncOperation(StrEnum):
     STARTING = "starting"
     STOPPING = "stopping"
     TRIGGERING = "triggering"
+
+
+class VersionCheckState(StrEnum):
+    """Application-owned state for the read-only version check."""
+
+    IDLE = "idle"
+    CHECKING = "checking"
+
+
+class BackupIgnoreOperation(StrEnum):
+    """Application-owned workflow state for Backup ignore rules."""
+
+    IDLE = "idle"
+    LOADING = "loading"
+    ADDING = "adding"
+    REMOVING = "removing"
+
+
+@dataclass(frozen=True, slots=True)
+class BackupIgnoreState:
+    """Ignore-rule state for the currently requested backup.
+
+    ``output`` intentionally stores Jotta's command output verbatim until the exact
+    ``ignores list`` stream/format contract has been captured and a parser can be
+    added.
+    """
+
+    backup_name: str | None = None
+    output: str | None = None
+    operation: BackupIgnoreOperation = BackupIgnoreOperation.IDLE
+
+    @property
+    def busy(self) -> bool:
+        return self.operation != BackupIgnoreOperation.IDLE
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,9 +83,13 @@ class ApplicationState:
     connected: bool = False
     snapshot: JottaSnapshot | None = None
     disk_usage: DiskUsage | None = None
+    version: VersionInfo | None = None
+    version_check_state: VersionCheckState = VersionCheckState.IDLE
+    version_error: str | None = None
 
     refresh_state: RefreshState = RefreshState.IDLE
     sync_operation: SyncOperation = SyncOperation.IDLE
+    backup_ignores: BackupIgnoreState = field(default_factory=BackupIgnoreState)
 
     error: ApplicationError | None = None
 
@@ -61,3 +100,7 @@ class ApplicationState:
     @property
     def sync_busy(self) -> bool:
         return self.sync_operation != SyncOperation.IDLE
+
+    @property
+    def version_checking(self) -> bool:
+        return self.version_check_state == VersionCheckState.CHECKING

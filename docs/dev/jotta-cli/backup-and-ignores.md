@@ -124,14 +124,21 @@ Some built-in patterns cannot be removed. Documented examples include `.DS_Store
 
 ## Jotta GUI rule editor
 
-Planned design:
+Implemented design:
 
 - Jotta's actual ignore list is the source of truth;
 - presets are convenience groups, not hidden rules;
+- shipped presets live in `src/jotta_gui/config/backup_ignore_presets.toml`;
 - show the concrete pattern created by every preset;
-- support custom patterns;
-- support `ignores test` before adding a rule;
+- support adding/removing preset patterns and exact custom patterns;
+- re-list rules from Jotta after every successful mutation;
 - do not maintain a separate database of active ignore state.
+
+The exact stdout format of `jotta-cli ignores list` has not yet been captured. Until
+that happens, the GUI deliberately displays the command output verbatim rather than
+guessing a parser contract. Capture real output before replacing it with structured
+rule rows. `ignores test` remains a planned follow-up once that workflow is added to
+the application layer.
 
 Initial useful development presets:
 

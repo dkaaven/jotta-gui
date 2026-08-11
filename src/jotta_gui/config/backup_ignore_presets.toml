@@ -1,0 +1,41 @@
+[[preset]]
+id = "git"
+label = "Git metadata"
+category = "Development"
+pattern = "**/.git"
+description = "Ignore Git repository metadata folders anywhere in the backup tree."
+
+[[preset]]
+id = "python-venv"
+label = "Python virtual environments"
+category = "Python"
+pattern = "**/.venv"
+description = "Ignore local Python virtual environments created in .venv folders."
+
+[[preset]]
+id = "python-bytecode"
+label = "Python bytecode caches"
+category = "Python"
+pattern = "**/__pycache__"
+description = "Ignore Python __pycache__ folders throughout the backup tree."
+
+[[preset]]
+id = "pytest-cache"
+label = "pytest cache"
+category = "Python"
+pattern = "**/.pytest_cache"
+description = "Ignore pytest's local cache directories."
+
+[[preset]]
+id = "ruff-cache"
+label = "Ruff cache"
+category = "Python"
+pattern = "**/.ruff_cache"
+description = "Ignore Ruff's local cache directories."
+
+[[preset]]
+id = "node-modules"
+label = "Node dependencies"
+category = "Development"
+pattern = "**/node_modules"
+description = "Ignore installed Node.js dependency trees."

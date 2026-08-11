@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QGridLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from jotta_gui.application.state import ApplicationState
 from jotta_gui.jotta.models import SyncActivity, SyncMode
@@ -44,6 +44,27 @@ class OverviewPage(QWidget):
             cards.setColumnStretch(column, 1)
         layout.addLayout(cards)
 
+        version_card = QFrame()
+        version_card.setObjectName("featureCard")
+        version_layout = QHBoxLayout(version_card)
+        version_layout.setContentsMargins(18, 14, 18, 14)
+        version_layout.setSpacing(14)
+
+        version_text = QVBoxLayout()
+        version_text.setSpacing(3)
+        version_title = QLabel("Jotta CLI version")
+        version_title.setObjectName("rowTitle")
+        self.version_detail = QLabel("Waiting for version check")
+        self.version_detail.setObjectName("mutedText")
+        self.version_detail.setWordWrap(True)
+        version_text.addWidget(version_title)
+        version_text.addWidget(self.version_detail)
+
+        self.version_pill = StatusPill("Not checked", "neutral")
+        version_layout.addLayout(version_text, stretch=1)
+        version_layout.addWidget(self.version_pill)
+        layout.addWidget(version_card)
+
         storage_title = QLabel("Storage")
         storage_title.setObjectName("sectionTitle")
         self.storage_description = QLabel("No account data yet")
@@ -71,6 +92,7 @@ class OverviewPage(QWidget):
             self.account_meta.setText("No account snapshot available")
             self._update_disk(state)
             self.sync_pill.set_status("Sync unknown", "neutral")
+            self._update_version(state)
             return
 
         account = snapshot.account
@@ -116,6 +138,50 @@ class OverviewPage(QWidget):
         self.sync_description.setText(f"{root} · {activity}")
 
         self._update_disk(state)
+        self._update_version(state)
+
+    def _update_version(self, state: ApplicationState) -> None:
+        if state.version_checking:
+            self.version_pill.set_status("Checking…", "info")
+            self.version_detail.setText("Checking installed and remote Jotta CLI versions")
+            return
+
+        version = state.version
+        if state.version_error is not None:
+            self.version_pill.set_status("Unknown", "neutral")
+            if version is not None and version.cli_version:
+                self.version_detail.setText(
+                    f"Installed {version.cli_version} · latest check failed"
+                )
+            else:
+                self.version_detail.setText("Could not check for Jotta CLI updates")
+            return
+
+        if version is None:
+            self.version_pill.set_status("Not checked", "neutral")
+            self.version_detail.setText("Version information is not available yet")
+            return
+
+        current = version.cli_version or "unknown"
+        remote = version.remote_version or "unknown"
+        if version.update_available is True:
+            self.version_pill.set_status("Update available", "warning")
+            self.version_detail.setText(
+                f"Installed {current} · Jottacloud reports {remote}"
+            )
+        elif version.update_available is False:
+            self.version_pill.set_status("Up to date", "success")
+            if version.remote_version is None:
+                self.version_detail.setText(
+                    f"Installed {current} · no newer version reported"
+                )
+            else:
+                self.version_detail.setText(f"Installed {current} · latest {remote}")
+        else:
+            self.version_pill.set_status("Unknown", "neutral")
+            self.version_detail.setText(
+                f"Installed {current} · remote version {remote}"
+            )
 
     def _update_disk(self, state: ApplicationState) -> None:
         disk = state.disk_usage

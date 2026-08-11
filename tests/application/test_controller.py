@@ -8,9 +8,16 @@ pytest.importorskip("PySide6")
 
 import jotta_gui.application.controller as controller_module
 from jotta_gui.application.controller import ApplicationController
-from jotta_gui.application.state import RefreshState, SyncOperation
+from jotta_gui.application.state import (
+    BackupIgnoreOperation,
+    BackupIgnoreState,
+    RefreshState,
+    SyncOperation,
+    VersionCheckState,
+)
 from jotta_gui.jotta.models import SyncActivity, SyncMode
 from jotta_gui.jotta.runner import Command, CommandResult
+from jotta_gui.jotta.version import VersionInfo
 from jotta_gui.system.storage import DiskUsage
 
 pytestmark = pytest.mark.qt
@@ -59,15 +66,19 @@ def result(
     )
 
 
-def test_start_requests_status(qt_app, monkeypatch) -> None:
+def test_start_requests_status_and_version(qt_app, monkeypatch) -> None:
     controller = ApplicationController()
-    calls = []
-    monkeypatch.setattr(controller_module, "request_status", calls.append)
+    status_calls = []
+    version_calls = []
+    monkeypatch.setattr(controller_module, "request_status", status_calls.append)
+    monkeypatch.setattr(controller_module, "request_version", version_calls.append)
 
     controller.start()
 
     assert controller.state.refreshing is True
-    assert calls == [controller.runner]
+    assert controller.state.version_checking is True
+    assert status_calls == [controller.runner]
+    assert version_calls == [controller.runner]
 
 
 @pytest.mark.parametrize(
@@ -303,4 +314,179 @@ def test_clear_error(qt_app) -> None:
 
     controller.clear_error()
 
+    assert controller.state.error is None
+
+
+def test_load_backup_ignores_requests_authoritative_list(qt_app, monkeypatch) -> None:
+    controller = ApplicationController()
+    calls = []
+    monkeypatch.setattr(
+        controller_module,
+        "list_ignores",
+        lambda runner, backup: calls.append((runner, backup)),
+    )
+
+    controller.load_backup_ignores("Documents")
+
+    assert controller.state.backup_ignores.backup_name == "Documents"
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.LOADING
+    assert calls == [(controller.runner, "Documents")]
+
+
+def test_ignore_list_result_preserves_cli_output_verbatim(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(
+        backup_ignores=BackupIgnoreState(
+            backup_name="Documents",
+            operation=BackupIgnoreOperation.LOADING,
+        )
+    )
+    output = "Backup: Documents\n  **/.git\n  **/.venv"
+
+    controller._handle_completed(result("backup_ignores_list", output))
+
+    assert controller.state.backup_ignores.output == output
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.IDLE
+
+
+def test_ignore_list_result_falls_back_to_successful_stderr(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(
+        backup_ignores=BackupIgnoreState(
+            backup_name="Documents",
+            operation=BackupIgnoreOperation.LOADING,
+        )
+    )
+    output = "Backup: Documents\n  **/.git\n  **/.venv"
+
+    controller._handle_completed(
+        result("backup_ignores_list", stdout="", stderr=output)
+    )
+
+    assert controller.state.backup_ignores.output == output
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.IDLE
+
+
+def test_add_backup_ignore_requests_add_then_relist(qt_app, monkeypatch) -> None:
+    controller = ApplicationController()
+    add_calls = []
+    list_calls = []
+    monkeypatch.setattr(
+        controller_module,
+        "add_ignore",
+        lambda runner, pattern, backup: add_calls.append((runner, pattern, backup)),
+    )
+    monkeypatch.setattr(
+        controller_module,
+        "list_ignores",
+        lambda runner, backup: list_calls.append((runner, backup)),
+    )
+
+    controller.add_backup_ignore("Documents", "**/.git")
+
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.ADDING
+    assert add_calls == [(controller.runner, "**/.git", "Documents")]
+
+    controller._handle_completed(result("backup_ignores_add"))
+
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.LOADING
+    assert list_calls == [(controller.runner, "Documents")]
+
+
+def test_ignore_command_failure_stops_rule_workflow(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(
+        backup_ignores=BackupIgnoreState(
+            backup_name="Documents",
+            output="old output",
+            operation=BackupIgnoreOperation.ADDING,
+        )
+    )
+
+    controller._handle_failed(
+        result("backup_ignores_add", stderr="invalid pattern", exit_code=1)
+    )
+
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.IDLE
+    assert controller.state.backup_ignores.output == "old output"
+    assert controller.state.error is not None
+    assert controller.state.error.message == "invalid pattern"
+
+
+def test_remove_backup_ignore_requests_remove_then_relist(qt_app, monkeypatch) -> None:
+    controller = ApplicationController()
+    remove_calls = []
+    list_calls = []
+    monkeypatch.setattr(
+        controller_module,
+        "remove_ignore",
+        lambda runner, pattern, backup: remove_calls.append((runner, pattern, backup)),
+    )
+    monkeypatch.setattr(
+        controller_module,
+        "list_ignores",
+        lambda runner, backup: list_calls.append((runner, backup)),
+    )
+
+    controller.remove_backup_ignore("Documents", "**/.git")
+
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.REMOVING
+    assert remove_calls == [(controller.runner, "**/.git", "Documents")]
+
+    controller._handle_completed(result("backup_ignores_remove"))
+
+    assert controller.state.backup_ignores.operation == BackupIgnoreOperation.LOADING
+    assert list_calls == [(controller.runner, "Documents")]
+
+
+def test_version_result_updates_read_only_version_state(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(version_check_state=VersionCheckState.CHECKING)
+
+    controller._handle_completed(
+        result(
+            "version",
+            "jottad version    : 0.17.159692\n"
+            "remote version    : 0.17.176206\n"
+            "jotta-cli version : 0.17.159692\n"
+            "release notes     : https://docs.example/release",
+        )
+    )
+
+    assert controller.state.version == VersionInfo(
+        cli_version="0.17.159692",
+        daemon_version="0.17.159692",
+        remote_version="0.17.176206",
+        release_notes_url="https://docs.example/release",
+    )
+    assert controller.state.version.update_available is True
+    assert controller.state.version_check_state == VersionCheckState.IDLE
+    assert controller.state.version_error is None
+
+
+def test_version_failure_does_not_surface_global_application_error(qt_app) -> None:
+    controller = ApplicationController()
+    errors = []
+    controller.command_error.connect(errors.append)
+    controller._set_state(version_check_state=VersionCheckState.CHECKING)
+
+    controller._handle_failed(
+        result("version", stderr="version unavailable", exit_code=1)
+    )
+
+    assert controller.state.version_check_state == VersionCheckState.IDLE
+    assert controller.state.version_error == "version unavailable"
+    assert controller.state.error is None
+    assert errors == []
+
+
+def test_invalid_version_output_becomes_unknown_without_global_error(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(version_check_state=VersionCheckState.CHECKING)
+
+    controller._handle_completed(result("version", "unexpected output"))
+
+    assert controller.state.version is None
+    assert controller.state.version_check_state == VersionCheckState.IDLE
+    assert "no recognized version fields" in (controller.state.version_error or "")
     assert controller.state.error is None

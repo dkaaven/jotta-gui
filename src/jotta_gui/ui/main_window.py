@@ -59,6 +59,12 @@ class MainWindow(QMainWindow):
         self.sync_page.stop_requested.connect(self.controller.stop_sync)
         self.sync_page.trigger_requested.connect(self.controller.trigger_sync)
 
+        self.backup_page.rules_requested.connect(self.controller.load_backup_ignores)
+        self.backup_page.ignore_add_requested.connect(self.controller.add_backup_ignore)
+        self.backup_page.ignore_remove_requested.connect(
+            self.controller.remove_backup_ignore
+        )
+
     def _build_layout(self) -> None:
         content = QWidget()
         content.setObjectName("content")
@@ -84,6 +90,8 @@ class MainWindow(QMainWindow):
             return
         self.pages.setCurrentWidget(page)
         self.header.set_page(*info)
+        if page_name == "backup":
+            self.backup_page.activate()
 
     def update_state(self, state: ApplicationState) -> None:
         self.header.update_state(state)

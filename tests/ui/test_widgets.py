@@ -5,7 +5,14 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from jotta_gui.application.state import ApplicationError, ApplicationState, RefreshState, SyncOperation
+from jotta_gui.application.state import (
+    ApplicationError,
+    ApplicationState,
+    BackupIgnoreState,
+    RefreshState,
+    SyncOperation,
+    VersionCheckState,
+)
 from jotta_gui.jotta.models import (
     AccountStatus,
     BackupStatus,
@@ -15,6 +22,7 @@ from jotta_gui.jotta.models import (
     SyncMode,
     SyncStatus,
 )
+from jotta_gui.jotta.version import VersionInfo
 from jotta_gui.system.storage import DiskUsage
 from jotta_gui.ui.components import ErrorBanner, Header
 from jotta_gui.ui.pages import BackupPage, OverviewPage, SettingsPage, SyncPage
@@ -149,3 +157,116 @@ def test_sync_page_offers_force_start_only_after_start_failure(qt_app) -> None:
     )
     assert page.force_start_button.isHidden() is False
     assert page.force_start_button.isEnabled() is True
+
+
+def test_backup_page_loads_presets_from_config(qt_app) -> None:
+    page = BackupPage()
+    page.update_state(_state())
+
+    assert page.backup_selector.currentText() == "Documents"
+    assert len(page.presets) == 6
+    assert page.preset_buttons["git"].isEnabled() is True
+
+
+def test_backup_page_activation_requests_current_rules(qt_app) -> None:
+    page = BackupPage()
+    requested = []
+    page.rules_requested.connect(requested.append)
+    page.update_state(_state())
+
+    page.activate()
+
+    assert requested == ["Documents"]
+
+
+def test_backup_page_displays_jotta_rule_output_verbatim(qt_app) -> None:
+    page = BackupPage()
+    output = "Backup: Documents\n  **/.git\n  **/.venv"
+    page.update_state(
+        _state(backup_ignores=BackupIgnoreState("Documents", output))
+    )
+
+    assert page.current_rules.toPlainText() == output
+    assert page.rules_status.text() == "Current rules for Documents"
+
+
+def test_backup_page_preset_emits_selected_backup_and_pattern(qt_app) -> None:
+    page = BackupPage()
+    requested = []
+    page.ignore_add_requested.connect(
+        lambda backup, pattern: requested.append((backup, pattern))
+    )
+    page.update_state(_state())
+
+    page.preset_buttons["git"].click()
+
+    assert requested == [("Documents", "**/.git")]
+
+
+def test_backup_page_preset_remove_emits_selected_backup_and_pattern(qt_app) -> None:
+    page = BackupPage()
+    requested = []
+    page.ignore_remove_requested.connect(
+        lambda backup, pattern: requested.append((backup, pattern))
+    )
+    page.update_state(_state())
+
+    page.preset_remove_buttons["git"].click()
+
+    assert requested == [("Documents", "**/.git")]
+
+
+def test_overview_shows_update_available(qt_app) -> None:
+    page = OverviewPage()
+    page.update_state(
+        _state(
+            version=VersionInfo(
+                cli_version="0.17.159692",
+                daemon_version="0.17.159692",
+                remote_version="0.17.176206",
+            )
+        )
+    )
+
+    assert page.version_pill.text() == "Update available"
+    assert "0.17.159692" in page.version_detail.text()
+    assert "0.17.176206" in page.version_detail.text()
+
+
+def test_overview_shows_up_to_date(qt_app) -> None:
+    page = OverviewPage()
+    page.update_state(
+        _state(
+            version=VersionInfo(
+                cli_version="0.17.176206",
+                remote_version="0.17.176206",
+            )
+        )
+    )
+
+    assert page.version_pill.text() == "Up to date"
+
+
+def test_overview_shows_up_to_date_when_remote_version_is_omitted(qt_app) -> None:
+    page = OverviewPage()
+    page.update_state(
+        _state(
+            version=VersionInfo(
+                cli_version="0.17.176206",
+                daemon_version="0.17.176206",
+                remote_version=None,
+            )
+        )
+    )
+
+    assert page.version_pill.text() == "Up to date"
+    assert "no newer version reported" in page.version_detail.text()
+
+
+def test_overview_shows_version_checking(qt_app) -> None:
+    page = OverviewPage()
+    page.update_state(
+        _state(version_check_state=VersionCheckState.CHECKING)
+    )
+
+    assert page.version_pill.text() == "Checking…"
