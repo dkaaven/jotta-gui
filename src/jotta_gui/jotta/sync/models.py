@@ -2,14 +2,17 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 
-class SyncRuntimeState(StrEnum):
+class SyncRuntimeActivity(StrEnum):
     LISTENING = "listening"
     TRIGGERED = "triggered"
     UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True, slots=True)
-class SyncRuntimeStatus:
-    state: SyncRuntimeState
+class SyncRuntimeObservation:
+    """Runtime evidence parsed from human-readable ``jotta-cli status``."""
+
+    activity: SyncRuntimeActivity
+    path: str | None = None
     mode: str | None = None
     status: str | None = None

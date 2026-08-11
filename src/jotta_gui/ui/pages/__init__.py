@@ -1,4 +1,3 @@
-
 from .backup import BackupPage
 from .overview import OverviewPage
 from .settings import SettingsPage

@@ -1,1 +1,1 @@
-
+"""Jotta GUI package."""

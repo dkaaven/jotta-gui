@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
@@ -10,13 +11,53 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Command:
+    """One jotta-cli invocation queued for execution."""
+
     name: str
     arguments: tuple[str, ...]
 
+    @property
+    def display(self) -> str:
+        return "jotta-cli " + " ".join(self.arguments)
+
+
+@dataclass(frozen=True, slots=True)
+class CommandResult:
+    """Structured result from a jotta-cli process.
+
+    stdout and stderr are always retained, including on failures. This matters for
+    long-running commands such as ``sync trigger`` where useful diagnostics may be
+    split across both streams.
+    """
+
+    command: Command
+    exit_code: int | None
+    stdout: str
+    stderr: str
+    process_error: str | None = None
+
+    @property
+    def succeeded(self) -> bool:
+        return self.exit_code == 0 and self.process_error is None
+
+    @property
+    def error_message(self) -> str | None:
+        if self.succeeded:
+            return None
+        if self.stderr:
+            return self.stderr
+        if self.process_error:
+            return self.process_error
+        if self.exit_code is not None:
+            return f"jotta-cli exited with {self.exit_code}"
+        return "jotta-cli failed"
+
 
 class JottaRunner(QObject):
-    completed = Signal(str, str)
-    error = Signal(str, str)
+    """Sequential asynchronous runner for jotta-cli commands."""
+
+    completed = Signal(object)  # CommandResult
+    failed = Signal(object)  # CommandResult
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -28,8 +69,8 @@ class JottaRunner(QObject):
         self.process.finished.connect(self._process_finished)
         self.process.errorOccurred.connect(self._process_error)
 
-    def run(self, name: str, arguments: list[str]) -> None:
-        self._queue.append(Command(name, tuple(arguments)))
+    def run(self, name: str, arguments: list[str] | tuple[str, ...]) -> None:
+        self._queue.append(Command(name=name, arguments=tuple(arguments)))
         self._start_next()
 
     def _start_next(self) -> None:
@@ -40,11 +81,7 @@ class JottaRunner(QObject):
 
         self._current = self._queue.popleft()
         self._process_error_message = None
-        logger.info(
-            "Running %s: jotta-cli %s",
-            self._current.name,
-            " ".join(self._current.arguments),
-        )
+        logger.info("Running %s: %s", self._current.name, self._current.display)
         self.process.start("jotta-cli", list(self._current.arguments))
 
     def _process_finished(
@@ -54,36 +91,47 @@ class JottaRunner(QObject):
     ) -> None:
         del exit_status
 
-        stdout = self._read_stdout()
-        stderr = self._read_stderr()
         command = self._take_current()
-
         if command is None:
+            self._drain_process_output()
             self._start_next()
             return
 
-        error_message = self._process_error_message
+        stdout, stderr = self._drain_process_output()
+        result = CommandResult(
+            command=command,
+            exit_code=exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            process_error=self._process_error_message,
+        )
         self._process_error_message = None
 
-        if exit_code != 0 or error_message:
-            self.error.emit(
-                command.name,
-                stderr or error_message or f"jotta-cli exited with {exit_code}",
-            )
+        if result.succeeded:
+            self.completed.emit(result)
         else:
-            self.completed.emit(command.name, stdout)
+            self.failed.emit(result)
 
         self._start_next()
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
         message = self.process.errorString()
 
-        # FailedToStart does not reliably produce a finished signal.
+        # QProcess does not reliably emit finished() for FailedToStart.
         if error == QProcess.ProcessError.FailedToStart:
             command = self._take_current()
-            self._process_error_message = None
+            stdout, stderr = self._drain_process_output()
             if command is not None:
-                self.error.emit(command.name, message)
+                self.failed.emit(
+                    CommandResult(
+                        command=command,
+                        exit_code=None,
+                        stdout=stdout,
+                        stderr=stderr,
+                        process_error=message,
+                    )
+                )
+            self._process_error_message = None
             self._start_next()
             return
 
@@ -94,12 +142,11 @@ class JottaRunner(QObject):
         self._current = None
         return command
 
-    def _read_stdout(self) -> str:
-        return bytes(self.process.readAllStandardOutput()).decode(
+    def _drain_process_output(self) -> tuple[str, str]:
+        stdout = bytes(self.process.readAllStandardOutput()).decode(
             "utf-8", errors="replace"
         ).strip()
-
-    def _read_stderr(self) -> str:
-        return bytes(self.process.readAllStandardError()).decode(
+        stderr = bytes(self.process.readAllStandardError()).decode(
             "utf-8", errors="replace"
         ).strip()
+        return stdout, stderr

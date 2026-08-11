@@ -1,54 +1,53 @@
+from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import (
-    QButtonGroup,
-    QLabel,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QButtonGroup, QLabel, QPushButton, QVBoxLayout, QWidget
 
 
 class Sidebar(QWidget):
     page_selected = Signal(str)
 
+    PAGES = (
+        ("overview", "Overview"),
+        ("sync", "Sync"),
+        ("backup", "Backup"),
+        ("settings", "Settings"),
+    )
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("sidebar")
-        self.setFixedWidth(220)
+        self.setFixedWidth(210)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 24, 16, 16)
-        layout.setSpacing(6)
+        layout.setContentsMargins(14, 22, 14, 14)
+        layout.setSpacing(5)
 
-        title = QLabel("Jotta GUI")
-        title.setObjectName("sidebarTitle")
-        layout.addWidget(title)
-        layout.addSpacing(24)
+        brand = QLabel("Jotta GUI")
+        brand.setObjectName("sidebarTitle")
+        layout.addWidget(brand)
+
+        caption = QLabel("Desktop client")
+        caption.setObjectName("sidebarCaption")
+        layout.addWidget(caption)
+        layout.addSpacing(22)
 
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
         self.buttons: dict[str, QPushButton] = {}
 
-        for key, label in (
-            ("overview", "Overview"),
-            ("sync", "Sync"),
-            ("backup", "Backup"),
-        ):
+        for key, label in self.PAGES[:-1]:
             layout.addWidget(self._create_button(key, label))
 
         layout.addStretch()
-        layout.addWidget(self._create_button("settings", "Settings"))
+        layout.addWidget(self._create_button(*self.PAGES[-1]))
         self.buttons["overview"].setChecked(True)
 
     def _create_button(self, key: str, label: str) -> QPushButton:
         button = QPushButton(label)
         button.setObjectName("navButton")
         button.setCheckable(True)
-        button.clicked.connect(
-            lambda checked=False, page=key: self.page_selected.emit(page)
-        )
-
+        button.clicked.connect(lambda checked=False, page=key: self.page_selected.emit(page))
         self.group.addButton(button)
         self.buttons[key] = button
         return button

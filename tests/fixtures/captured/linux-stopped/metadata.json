@@ -1,8 +1,0 @@
-{
-  "schema": 1,
-  "expected_sync_state": "inactive",
-  "commands": {
-    "status": "jotta-cli status --json",
-    "runtime": "jotta-cli status"
-  }
-}

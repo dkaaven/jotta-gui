@@ -1,76 +1,83 @@
-from PySide6.QtCore import Signal
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-from jotta_gui.application.state import (
-    ApplicationState,
-    SyncActivity,
-    SyncMode,
-    SyncOperation,
-)
-from jotta_gui.ui.components import MetricCard
-from jotta_gui.ui.formatting import format_bytes
+from jotta_gui.application.state import ApplicationState, SyncOperation
+from jotta_gui.jotta.models import SyncActivity, SyncMode
+from jotta_gui.ui.components import MetricCard, StatusPill
+from jotta_gui.ui.formatting import format_bytes, format_count
+
+from ._shared import make_scroll_page
 
 
 class SyncPage(QWidget):
     start_requested = Signal()
+    force_start_requested = Signal()
     stop_requested = Signal()
     trigger_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        _, layout = make_scroll_page(self)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        status_card = QFrame()
+        status_card.setObjectName("featureCard")
+        status_layout = QVBoxLayout(status_card)
+        status_layout.setContentsMargins(20, 18, 20, 18)
+        status_layout.setSpacing(8)
 
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
+        status_header = QHBoxLayout()
+        self.status_pill = StatusPill("Sync unknown", "neutral")
+        status_header.addWidget(self.status_pill)
+        status_header.addStretch()
+        status_layout.addLayout(status_header)
 
-        root_title = QLabel("Sync folder")
-        root_title.setObjectName("sectionTitle")
-        self.root_path = QLabel("Loading…")
-        self.root_path.setObjectName("syncRoot")
+        self.root_path = QLabel("Sync root unavailable")
+        self.root_path.setObjectName("featureTitle")
+        self.root_path.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.activity_text = QLabel("Waiting for Sync state")
+        self.activity_text.setObjectName("mutedText")
+        self.activity_text.setWordWrap(True)
+        status_layout.addWidget(self.root_path)
+        status_layout.addWidget(self.activity_text)
+        layout.addWidget(status_card)
 
-        root_header = QHBoxLayout()
-        root_header.addWidget(root_title)
-        root_header.addStretch()
-        layout.addLayout(root_header)
-        layout.addWidget(self.root_path)
-
-        self.local_card = MetricCard("Local", "—", "Loading local sync data")
-        self.remote_card = MetricCard("Cloud", "—", "Loading remote sync data")
-        self.folder_card = MetricCard("Folders", "—", "Loading folder data")
+        self.local_card = MetricCard("Local", "—", "Files in Sync")
+        self.remote_card = MetricCard("Cloud", "—", "Remote count")
+        self.folder_card = MetricCard("Folders", "—", "Folder count")
 
         cards = QGridLayout()
-        cards.setSpacing(16)
-        cards.addWidget(self.local_card, 0, 0)
-        cards.addWidget(self.remote_card, 0, 1)
-        cards.addWidget(self.folder_card, 0, 2)
-        for column in range(3):
+        cards.setSpacing(14)
+        for column, card in enumerate((self.local_card, self.remote_card, self.folder_card)):
+            cards.addWidget(card, 0, column)
             cards.setColumnStretch(column, 1)
         layout.addLayout(cards)
 
-        controls_title = QLabel("Sync controls")
+        controls_title = QLabel("Controls")
         controls_title.setObjectName("sectionTitle")
+        controls_help = QLabel(
+            "Continuous Sync can be stopped into triggered mode. In triggered mode, "
+            "you can start continuous Sync again or run one synchronization now."
+        )
+        controls_help.setObjectName("mutedText")
+        controls_help.setWordWrap(True)
+        layout.addWidget(controls_title)
+        layout.addWidget(controls_help)
 
-        self.runtime_status = QLabel("● Sync mode unknown")
-        self.runtime_status.setObjectName("syncRuntimeStatus")
-
-        self.start_button = QPushButton("Start sync")
+        self.start_button = QPushButton("Start continuous Sync")
         self.start_button.setObjectName("primaryButton")
         self.start_button.clicked.connect(self.start_requested.emit)
 
-        self.stop_button = QPushButton("Stop sync")
+        self.stop_button = QPushButton("Stop continuous Sync")
         self.stop_button.clicked.connect(self.stop_requested.emit)
 
         self.trigger_button = QPushButton("Sync now")
@@ -82,85 +89,114 @@ class SyncPage(QWidget):
         controls.addWidget(self.stop_button)
         controls.addWidget(self.trigger_button)
         controls.addStretch()
-
-        layout.addWidget(controls_title)
-        layout.addWidget(self.runtime_status)
         layout.addLayout(controls)
 
-        folders_title = QLabel("Synced folders")
-        folders_title.setObjectName("sectionTitle")
-        placeholder = QLabel("Selective sync folders will appear here.")
-        placeholder.setObjectName("mutedText")
+        self.force_start_button = QPushButton("Force start after critical Sync error")
+        self.force_start_button.setObjectName("linkButton")
+        self.force_start_button.clicked.connect(self.force_start_requested.emit)
+        self.force_start_button.setVisible(False)
+        layout.addWidget(self.force_start_button)
 
-        layout.addWidget(folders_title)
-        layout.addWidget(placeholder)
+        detail_title = QLabel("CLI evidence")
+        detail_title.setObjectName("sectionTitle")
+        self.evidence = QLabel("No Sync snapshot available")
+        self.evidence.setObjectName("mutedText")
+        self.evidence.setWordWrap(True)
+        layout.addWidget(detail_title)
+        layout.addWidget(self.evidence)
         layout.addStretch()
 
-        scroll.setWidget(content)
-        page_layout = QVBoxLayout(self)
-        page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.addWidget(scroll)
-
-        self._set_controls(False, False, False)
+        self._set_controls(False, False, False, False)
 
     def update_state(self, state: ApplicationState) -> None:
-        status = state.status
-        if status is not None:
-            sync = status.sync
-            self.root_path.setText(sync.root_path)
-            self.local_card.set_metric(
-                f"{sync.local.files:,}",
-                f"{format_bytes(sync.local.bytes)} locally",
-            )
-            self.remote_card.set_metric(
-                f"{sync.remote.files:,}",
-                f"{format_bytes(sync.remote.bytes)} in cloud",
-            )
-            self.folder_card.set_metric(f"{sync.folder_count:,}", "folders")
-
-        self._update_runtime_label(state)
-        self._update_controls(state)
-
-    def _update_runtime_label(self, state: ApplicationState) -> None:
-        if state.status is not None and not state.status.sync.enabled:
-            text, color = "● Sync disabled", "#e66b6b"
-        elif state.sync_operation == SyncOperation.STARTING:
-            text, color = "● Starting sync…", "#6173e8"
-        elif state.sync_operation == SyncOperation.STOPPING:
-            text, color = "● Stopping sync…", "#6173e8"
-        elif state.sync_operation == SyncOperation.TRIGGERING:
-            text, color = "● Syncing now…", "#6173e8"
-        elif state.sync_mode == SyncMode.AUTOMATIC:
-            text, color = "● Automatic sync enabled", "#62c98a"
-        elif state.sync_mode == SyncMode.TRIGGERED:
-            text, color = "● Manual sync mode", "#e6a75f"
-        else:
-            text, color = "● Sync mode unknown", "#8b909a"
-
-        if state.sync_activity_status:
-            text = f"{text} — {state.sync_activity_status}"
-        elif state.sync_activity == SyncActivity.LISTENING:
-            text = f"{text} — listening for changes"
-
-        self.runtime_status.setText(text)
-        self.runtime_status.setStyleSheet(f"color: {color}; font-weight: 600;")
-
-    def _update_controls(self, state: ApplicationState) -> None:
-        status = state.status
-        if not state.connected or status is None or not status.sync.enabled:
-            self._set_controls(False, False, False)
+        snapshot = state.snapshot
+        if snapshot is None:
+            self.status_pill.set_status("Sync unknown", "neutral")
+            self.root_path.setText("Sync root unavailable")
+            self.activity_text.setText("No Jottacloud snapshot available")
+            self.force_start_button.setVisible(False)
+            self._set_controls(False, False, False, False)
             return
 
-        if state.sync_operation != SyncOperation.IDLE:
-            self._set_controls(False, False, False)
-        elif state.sync_mode == SyncMode.AUTOMATIC:
-            self._set_controls(False, True, False)
-        elif state.sync_mode == SyncMode.TRIGGERED:
-            self._set_controls(True, False, True)
-        else:
-            self._set_controls(False, False, False)
+        sync = snapshot.sync
+        self.root_path.setText(str(sync.root_path) if sync.root_path else "Sync root unknown")
+        self.local_card.set_metric(format_count(sync.local.files), format_bytes(sync.local.bytes))
+        self.remote_card.set_metric(format_count(sync.remote.files), format_bytes(sync.remote.bytes))
+        self.folder_card.set_metric(format_count(sync.folder_count), "folders")
 
-    def _set_controls(self, start: bool, stop: bool, trigger: bool) -> None:
+        text, tone = _status_label(state, sync.mode)
+        self.status_pill.set_status(text, tone)
+
+        activity = sync.activity_text or _activity_label(sync.activity)
+        if state.refreshing:
+            activity = f"Refreshing state… · {activity}"
+        self.activity_text.setText(activity)
+
+        raw_mode = sync.runtime_mode_text or "not observed"
+        cli_state = "missing" if sync.cli_sync_state is None else str(sync.cli_sync_state)
+        self.evidence.setText(
+            f"Configured mode: {sync.mode.value} · Runtime mode text: {raw_mode} · "
+            f"CLI SyncState: {cli_state}"
+        )
+
+        force_available = (
+            state.error is not None
+            and state.error.command == "sync_start"
+        )
+
+        self.force_start_button.setVisible(force_available)
+        self._update_controls(state, sync.mode, force_available)
+
+    def _update_controls(
+        self,
+        state: ApplicationState,
+        mode: SyncMode,
+        force_available: bool,
+    ) -> None:
+        if not state.connected or state.sync_busy or state.refreshing:
+            self._set_controls(False, False, False, False)
+            return
+
+        if mode == SyncMode.AUTOMATIC:
+            self._set_controls(False, True, False, force_available)
+        elif mode == SyncMode.TRIGGERED:
+            self._set_controls(True, False, True, force_available)
+        else:
+            self._set_controls(False, False, False, False)
+
+    def _set_controls(
+        self,
+        start: bool,
+        stop: bool,
+        trigger: bool,
+        force: bool,
+    ) -> None:
         self.start_button.setEnabled(start)
         self.stop_button.setEnabled(stop)
         self.trigger_button.setEnabled(trigger)
+        self.force_start_button.setEnabled(force)
+
+
+def _status_label(state: ApplicationState, mode: SyncMode) -> tuple[str, str]:
+    pending = {
+        SyncOperation.STARTING: ("Starting continuous Sync…", "info"),
+        SyncOperation.STOPPING: ("Stopping continuous Sync…", "info"),
+        SyncOperation.TRIGGERING: ("Syncing now…", "info"),
+    }
+    if state.sync_operation in pending:
+        return pending[state.sync_operation]
+    if mode == SyncMode.AUTOMATIC:
+        return "Automatic Sync", "success"
+    if mode == SyncMode.TRIGGERED:
+        return "Triggered mode", "warning"
+    if mode == SyncMode.DISABLED:
+        return "Sync disabled", "danger"
+    return "Sync mode unknown", "neutral"
+
+
+def _activity_label(activity: SyncActivity) -> str:
+    if activity == SyncActivity.LISTENING:
+        return "Listening for filesystem changes"
+    if activity == SyncActivity.TRIGGERED:
+        return "Triggered Sync activity observed"
+    return "Runtime activity was not observed"

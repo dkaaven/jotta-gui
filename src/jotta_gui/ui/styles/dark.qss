@@ -1,22 +1,25 @@
-
 QWidget {
-    background-color: #111318;
+    background-color: #101218;
     color: #e8eaf0;
     font-size: 14px;
 }
 
-QMainWindow {
-    background-color: #111318;
+QMainWindow,
+QWidget#content,
+QWidget#pageContent,
+QScrollArea#pageScroll,
+QScrollArea#pageScroll > QWidget > QWidget {
+    background-color: #101218;
 }
 
 QWidget#sidebar {
-    background-color: #171a21;
-    border-right: 1px solid #252a34;
+    background-color: #161920;
+    border-right: 1px solid #282d37;
 }
 
 QWidget#header {
-    background-color: #111318;
-    border-bottom: 1px solid #252a34;
+    background-color: #101218;
+    border-bottom: 1px solid #282d37;
 }
 
 QLabel {
@@ -28,41 +31,51 @@ QLabel#sidebarTitle {
     font-weight: 700;
 }
 
+QLabel#sidebarCaption,
+QLabel#pageSubtitle,
+QLabel#mutedText,
+QLabel#cardTitle,
+QLabel#cardSubtitle,
+QLabel#fieldLabel {
+    color: #9299a7;
+}
+
 QLabel#pageTitle {
     font-size: 22px;
     font-weight: 700;
 }
 
-QLabel#pageSubtitle,
-QLabel#mutedText,
-QLabel#cardTitle,
-QLabel#cardSubtitle {
-    color: #8b93a1;
-}
-
-QLabel#overviewUser {
+QLabel#heroTitle {
     font-size: 24px;
     font-weight: 700;
 }
 
 QLabel#sectionTitle {
     font-size: 17px;
+    font-weight: 650;
+    margin-top: 4px;
+}
+
+QLabel#featureTitle {
+    font-size: 18px;
+    font-weight: 650;
+}
+
+QLabel#rowTitle,
+QLabel#fieldValue {
     font-weight: 600;
 }
 
-QLabel#syncRoot {
-    color: #c7cad1;
+QLabel#rowMetric {
+    color: #cfd3dc;
 }
 
 QFrame#metricCard,
+QFrame#featureCard,
 QFrame#backupRow {
     background-color: #191d25;
-    border: 1px solid #292f3a;
-    border-radius: 12px;
-}
-
-QFrame#backupRow {
-    border-radius: 9px;
+    border: 1px solid #2a303b;
+    border-radius: 11px;
 }
 
 QLabel#cardTitle,
@@ -71,20 +84,17 @@ QLabel#cardSubtitle {
 }
 
 QLabel#cardValue {
-    color: #f2f3f5;
-    font-size: 26px;
+    color: #f4f5f7;
+    font-size: 25px;
     font-weight: 700;
 }
 
-QLabel#backupName {
-    font-weight: 600;
-}
-
 QPushButton {
+    min-height: 20px;
     background-color: transparent;
-    border: 1px solid #292f3a;
+    border: 1px solid #303642;
     border-radius: 7px;
-    padding: 9px 12px;
+    padding: 8px 12px;
 }
 
 QPushButton:hover:enabled {
@@ -92,22 +102,25 @@ QPushButton:hover:enabled {
 }
 
 QPushButton:pressed:enabled {
-    background-color: #2c323d;
+    background-color: #2b313d;
 }
 
 QPushButton:disabled {
-    color: #616875;
-    border-color: #222731;
+    color: #626977;
+    border-color: #252a33;
 }
 
 QPushButton#navButton {
+    min-height: 24px;
     border: none;
     text-align: left;
+    padding: 9px 11px;
 }
 
 QPushButton#navButton:checked {
     background-color: #252b38;
     color: #ffffff;
+    font-weight: 600;
 }
 
 QPushButton#primaryButton {
@@ -121,23 +134,77 @@ QPushButton#primaryButton:hover:enabled {
     background-color: #7182ef;
 }
 
-QProgressBar#storageProgress,
-QProgressBar#diskProgress {
-    min-height: 9px;
-    max-height: 9px;
+QPushButton#linkButton {
+    border: none;
+    color: #9ba7ff;
+    text-align: left;
+    padding-left: 0;
+}
+
+QPushButton#linkButton:hover:enabled {
+    background-color: transparent;
+    color: #b7c0ff;
+}
+
+QLabel#statusPill {
+    border-radius: 10px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+QLabel#statusPill[tone="neutral"] {
+    background-color: #252a33;
+    color: #aab0bb;
+}
+
+QLabel#statusPill[tone="success"] {
+    background-color: #183426;
+    color: #7bd7a1;
+}
+
+QLabel#statusPill[tone="warning"] {
+    background-color: #3a2d19;
+    color: #f0b76a;
+}
+
+QLabel#statusPill[tone="danger"] {
+    background-color: #3b2024;
+    color: #ef8585;
+}
+
+QLabel#statusPill[tone="info"] {
+    background-color: #202d4d;
+    color: #9eafff;
+}
+
+QFrame#errorBanner {
+    background-color: #3b2024;
+    border-bottom: 1px solid #683239;
+}
+
+QLabel#errorText {
+    color: #f2b0b0;
+}
+
+QPushButton#bannerButton {
+    border-color: #754148;
+    color: #f2c0c0;
+}
+
+QProgressBar#storageProgress {
+    min-height: 8px;
+    max-height: 8px;
     background-color: #252a34;
     border: none;
     border-radius: 4px;
 }
 
-QProgressBar#storageProgress::chunk,
-QProgressBar#diskProgress::chunk {
+QProgressBar#storageProgress::chunk {
     background-color: #6173e8;
     border-radius: 4px;
 }
 
-QScrollArea,
-QScrollArea > QWidget > QWidget {
-    background-color: transparent;
+QScrollArea {
     border: none;
 }

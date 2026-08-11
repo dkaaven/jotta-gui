@@ -6,13 +6,13 @@ if TYPE_CHECKING:
     from jotta_gui.jotta.runner import JottaRunner
 
 
-def selective_list(runner: JottaRunner) -> None:
+def list_selective_sync(runner: JottaRunner) -> None:
+    """List top-level folders currently excluded by selective Sync.
+
+    The captured 0.17.159692 help shows ``add``, ``rem`` and ``set`` as
+    interactive commands with no documented positional folder argument. Those
+    mutating operations are intentionally not wrapped until their interaction
+    contract has been captured.
+    """
+
     runner.run("sync_selective_list", ["sync", "selective", "list"])
-
-
-def selective_add(runner: JottaRunner, folder: str) -> None:
-    runner.run("sync_selective_add", ["sync", "selective", "add", folder])
-
-
-def selective_remove(runner: JottaRunner, folder: str) -> None:
-    runner.run("sync_selective_remove", ["sync", "selective", "rem", folder])

@@ -6,12 +6,33 @@ if TYPE_CHECKING:
     from jotta_gui.jotta.runner import JottaRunner
 
 
-def ignores_list(runner: JottaRunner, backup: str) -> None:
-    runner.run("backup_ignores_list", ["ignores", "list", "--backup", backup])
+def list_ignores(runner: JottaRunner, backup: str | None = None) -> None:
+    arguments = ["ignores", "list"]
+    if backup:
+        arguments.extend(["--backup", backup])
+    runner.run("backup_ignores_list", arguments)
 
 
-def ignores_add(runner: JottaRunner, backup: str, pattern: str) -> None:
+def add_ignore(
+    runner: JottaRunner,
+    pattern: str,
+    backup: str | None = None,
+) -> None:
+    arguments = ["ignores", "add", "--pattern", pattern]
+    if backup:
+        arguments.extend(["--backup", backup])
+    runner.run("backup_ignores_add", arguments)
+
+
+def remove_ignore(runner: JottaRunner, pattern: str, backup: str) -> None:
     runner.run(
-        "backup_ignores_add",
-        ["ignores", "add", "--pattern", pattern, "--backup", backup],
+        "backup_ignores_remove",
+        ["ignores", "rem", "--pattern", pattern, "--backup", backup],
+    )
+
+
+def test_ignore(runner: JottaRunner, pattern: str, path: str) -> None:
+    runner.run(
+        "backup_ignores_test",
+        ["ignores", "test", "--pattern", pattern, "--path", path],
     )

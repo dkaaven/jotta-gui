@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 
 import pytest
@@ -6,209 +8,299 @@ pytest.importorskip("PySide6")
 
 import jotta_gui.application.controller as controller_module
 from jotta_gui.application.controller import ApplicationController
-from jotta_gui.application.state import SyncActivity, SyncMode, SyncOperation
+from jotta_gui.application.state import RefreshState, SyncOperation
+from jotta_gui.jotta.models import SyncActivity, SyncMode
+from jotta_gui.jotta.runner import Command, CommandResult
 from jotta_gui.system.storage import DiskUsage
 
 pytestmark = pytest.mark.qt
 
 
+@pytest.fixture
+def application_status_payload() -> dict:
+    return {
+        "User": {
+            "Email": "user@example.com",
+            "Fullname": "Example User",
+            "Hostname": "workstation",
+            "Brand": "Jottacloud",
+            "AccountInfo": {
+                "Capacity": 1_000_000,
+                "Usage": 250_000,
+                "Subscription": 1,
+                "SubscriptionNameLocalized": "Personal",
+                "ProductNameLocalized": "Personal",
+            },
+            "device": {"Name": "Workstation", "Type": 12},
+        },
+        "Sync": {
+            "Enabled": True,
+            "RootPath": "/home/user/Jotta",
+            "Count": {"Files": 12, "Bytes": 1_000},
+            "RemoteCount": {"Files": 14, "Bytes": 1_200},
+            "FolderCount": 3,
+            "SyncState": 1,
+        },
+        "Backup": {"State": {"Enabled": {"Backups": []}}},
+    }
+
+
+def result(
+    name: str,
+    stdout: str = "",
+    stderr: str = "",
+    exit_code: int = 0,
+) -> CommandResult:
+    return CommandResult(
+        command=Command(name, (name,)),
+        exit_code=exit_code,
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+
 def test_start_requests_status(qt_app, monkeypatch) -> None:
     controller = ApplicationController()
     calls = []
-    monkeypatch.setattr(controller_module, "get_status", calls.append)
+    monkeypatch.setattr(controller_module, "request_status", calls.append)
 
     controller.start()
 
+    assert controller.state.refreshing is True
     assert calls == [controller.runner]
 
 
 @pytest.mark.parametrize(
-    ("method_name", "command_name", "expected_operation"),
+    ("method_name", "function_name", "expected_operation"),
     [
-        ("start_sync", "sync_start", SyncOperation.STARTING),
-        ("stop_sync", "sync_stop", SyncOperation.STOPPING),
-        ("trigger_sync", "sync_trigger", SyncOperation.TRIGGERING),
+        ("start_sync", "start_sync", SyncOperation.STARTING),
+        ("stop_sync", "stop_sync", SyncOperation.STOPPING),
+        ("trigger_sync", "trigger_sync", SyncOperation.TRIGGERING),
     ],
 )
-def test_sync_action_sets_pending_operation_and_runs_command(
+def test_sync_action_sets_pending_operation(
     qt_app,
     monkeypatch,
     method_name: str,
-    command_name: str,
+    function_name: str,
     expected_operation: SyncOperation,
 ) -> None:
     controller = ApplicationController()
     calls = []
-    monkeypatch.setattr(
-        controller_module,
-        command_name,
-        lambda runner: calls.append(runner),
-    )
+
+    if function_name == "start_sync":
+        monkeypatch.setattr(
+            controller_module,
+            function_name,
+            lambda runner, force=False: calls.append((runner, force)),
+        )
+    else:
+        monkeypatch.setattr(
+            controller_module,
+            function_name,
+            lambda runner: calls.append(runner),
+        )
 
     getattr(controller, method_name)()
 
     assert controller.state.sync_operation == expected_operation
-    assert controller.state.error_message is None
-    assert calls == [controller.runner]
+    assert controller.state.error is None
+    assert calls
 
 
-def test_status_output_sets_triggered_mode_when_automatic_is_absent(
+def test_duplicate_sync_action_is_ignored_while_busy(qt_app, monkeypatch) -> None:
+    controller = ApplicationController()
+    calls = []
+    monkeypatch.setattr(controller_module, "stop_sync", calls.append)
+    controller._set_state(sync_operation=SyncOperation.STARTING)
+
+    controller.stop_sync()
+
+    assert calls == []
+    assert controller.state.sync_operation == SyncOperation.STARTING
+
+
+def test_status_result_builds_provisional_snapshot_and_requests_runtime(
     qt_app,
     monkeypatch,
-    status_output: str,
+    application_status_payload: dict,
 ) -> None:
+    application_status_payload["Sync"]["Automatic"] = True
     controller = ApplicationController()
     runtime_calls = []
     disk = DiskUsage(total=1_000, used=250, free=750)
     monkeypatch.setattr(controller_module, "get_disk_usage", lambda path: disk)
     monkeypatch.setattr(
         controller_module,
-        "get_sync_runtime_status",
+        "request_sync_runtime_status",
         runtime_calls.append,
     )
+    controller._set_state(refresh_state=RefreshState.REFRESHING)
 
-    controller._handle_status_output(status_output)
+    controller._handle_status_result(
+        result("status", json.dumps(application_status_payload))
+    )
 
     assert controller.state.connected is True
-    assert controller.state.status is not None
-    assert controller.state.status.user.fullname == "Example User"
+    assert controller.state.snapshot is not None
+    assert controller.state.snapshot.sync.mode == SyncMode.AUTOMATIC
+    assert controller.state.snapshot.sync.activity == SyncActivity.UNKNOWN
     assert controller.state.disk_usage == disk
-    assert controller.state.sync_mode == SyncMode.TRIGGERED
-    assert controller.state.sync_operation == SyncOperation.IDLE
-    assert controller.state.sync_activity == SyncActivity.UNKNOWN
-    assert controller.state.error_message is None
+    assert controller.state.refreshing is True
     assert runtime_calls == [controller.runner]
 
 
-def test_status_output_sets_automatic_mode_from_json(
+def test_runtime_result_completes_snapshot(
     qt_app,
     monkeypatch,
-    status_payload: dict,
+    application_status_payload: dict,
 ) -> None:
-    status_payload["Sync"]["Automatic"] = True
+    application_status_payload["Sync"]["Automatic"] = True
     controller = ApplicationController()
+    monkeypatch.setattr(controller_module, "get_disk_usage", lambda path: None)
     monkeypatch.setattr(
         controller_module,
-        "get_disk_usage",
-        lambda path: DiskUsage(total=1, used=0, free=1),
+        "request_sync_runtime_status",
+        lambda runner: None,
     )
-    monkeypatch.setattr(controller_module, "get_sync_runtime_status", lambda runner: None)
+    controller._set_state(
+        refresh_state=RefreshState.REFRESHING,
+        sync_operation=SyncOperation.STARTING,
+    )
+    controller._handle_status_result(
+        result("status", json.dumps(application_status_payload))
+    )
 
-    controller._handle_status_output(json.dumps(status_payload))
+    controller._handle_runtime_result(
+        result(
+            "sync_runtime_status",
+            "Path: /home/user/Jotta\n"
+            "Mode: listening to events\n"
+            "Status: Checking for changes...",
+        )
+    )
 
-    assert controller.state.sync_mode == SyncMode.AUTOMATIC
+    assert controller.state.snapshot is not None
+    assert controller.state.snapshot.sync.mode == SyncMode.AUTOMATIC
+    assert controller.state.snapshot.sync.activity == SyncActivity.LISTENING
+    assert controller.state.snapshot.sync.activity_text == "Checking for changes..."
+    assert controller.state.refresh_state == RefreshState.IDLE
+    assert controller.state.sync_operation == SyncOperation.IDLE
 
 
 def test_disk_failure_does_not_disconnect_jotta(
     qt_app,
     monkeypatch,
-    status_output: str,
+    application_status_payload: dict,
 ) -> None:
     controller = ApplicationController()
 
-    def fail_disk_usage(path: str):
+    def fail_disk_usage(path):
         raise OSError("not mounted")
 
     monkeypatch.setattr(controller_module, "get_disk_usage", fail_disk_usage)
-    monkeypatch.setattr(controller_module, "get_sync_runtime_status", lambda runner: None)
+    monkeypatch.setattr(
+        controller_module,
+        "request_sync_runtime_status",
+        lambda runner: None,
+    )
+    controller._set_state(refresh_state=RefreshState.REFRESHING)
 
-    controller._handle_status_output(status_output)
+    controller._handle_status_result(
+        result("status", json.dumps(application_status_payload))
+    )
 
     assert controller.state.connected is True
-    assert controller.state.status is not None
+    assert controller.state.snapshot is not None
     assert controller.state.disk_usage is None
 
 
 def test_invalid_status_marks_connection_unavailable(qt_app) -> None:
     controller = ApplicationController()
     errors = []
-    controller.command_error.connect(lambda command, message: errors.append((command, message)))
+    controller.command_error.connect(errors.append)
+    controller._set_state(refresh_state=RefreshState.REFRESHING)
 
-    controller._handle_status_output("not json")
+    controller._handle_status_result(result("status", "not json"))
 
     assert controller.state.connected is False
-    assert controller.state.sync_mode == SyncMode.UNKNOWN
-    assert controller.state.sync_operation == SyncOperation.IDLE
-    assert controller.state.error_message is not None
-    assert errors[0][0] == "status"
+    assert controller.state.refresh_state == RefreshState.IDLE
+    assert controller.state.error is not None
+    assert controller.state.error.command == "status"
+    assert errors[-1].command == "status"
 
 
-def test_runtime_output_updates_activity_without_changing_mode(
+def test_runtime_failure_keeps_json_snapshot_and_connection(
     qt_app,
     monkeypatch,
-    status_payload: dict,
-) -> None:
-    status_payload["Sync"]["Automatic"] = True
-    controller = ApplicationController()
-    monkeypatch.setattr(
-        controller_module,
-        "get_disk_usage",
-        lambda path: DiskUsage(total=1, used=0, free=1),
-    )
-    monkeypatch.setattr(controller_module, "get_sync_runtime_status", lambda runner: None)
-    controller._handle_status_output(json.dumps(status_payload))
-
-    controller._handle_runtime_output(
-        "Path: /home/user/Jotta\nMode: listening to events"
-    )
-
-    assert controller.state.sync_mode == SyncMode.AUTOMATIC
-    assert controller.state.sync_activity == SyncActivity.LISTENING
-
-
-def test_runtime_output_preserves_activity_status(
-    qt_app,
-    monkeypatch,
-    status_output: str,
+    application_status_payload: dict,
 ) -> None:
     controller = ApplicationController()
+    monkeypatch.setattr(controller_module, "get_disk_usage", lambda path: None)
     monkeypatch.setattr(
         controller_module,
-        "get_disk_usage",
-        lambda path: DiskUsage(total=1, used=0, free=1),
+        "request_sync_runtime_status",
+        lambda runner: None,
     )
-    monkeypatch.setattr(controller_module, "get_sync_runtime_status", lambda runner: None)
-    controller._handle_status_output(status_output)
-
-    controller._handle_runtime_output(
-        "Path: /home/user/Jotta\nMode: manually triggered\nStatus: Checking for changes..."
+    controller._set_state(refresh_state=RefreshState.REFRESHING)
+    controller._handle_status_result(
+        result("status", json.dumps(application_status_payload))
     )
 
-    assert controller.state.sync_mode == SyncMode.TRIGGERED
-    assert controller.state.sync_activity == SyncActivity.TRIGGERED
-    assert controller.state.sync_activity_status == "Checking for changes..."
-
-
-def test_runtime_error_preserves_configured_mode(qt_app) -> None:
-    controller = ApplicationController()
-    controller._set_state(connected=True, sync_mode=SyncMode.TRIGGERED)
-
-    controller._handle_error("sync_runtime_status", "runtime unavailable")
+    controller._handle_failed(
+        result("sync_runtime_status", stderr="runtime unavailable", exit_code=1)
+    )
 
     assert controller.state.connected is True
-    assert controller.state.sync_mode == SyncMode.TRIGGERED
-    assert controller.state.sync_activity == SyncActivity.UNKNOWN
-    assert controller.state.error_message == "runtime unavailable"
+    assert controller.state.snapshot is not None
+    assert controller.state.snapshot.sync.activity == SyncActivity.UNKNOWN
+    assert controller.state.refresh_state == RefreshState.IDLE
+    assert controller.state.error is not None
+    assert controller.state.error.message == "runtime unavailable"
 
 
-def test_failed_mutating_command_refreshes_real_state(qt_app, monkeypatch) -> None:
+def test_failed_sync_command_refreshes_real_state_and_preserves_error(
+    qt_app,
+    monkeypatch,
+) -> None:
     controller = ApplicationController()
-    refreshes = []
-    controller._set_state(sync_operation=SyncOperation.STARTING)
-    monkeypatch.setattr(controller, "refresh", lambda: refreshes.append(True))
+    refresh_calls = []
+    monkeypatch.setattr(controller_module, "request_status", refresh_calls.append)
+    controller._set_state(sync_operation=SyncOperation.TRIGGERING)
 
-    controller._handle_error("sync_start", "failed")
+    controller._handle_failed(
+        result("sync_trigger", stderr="case collision", exit_code=1)
+    )
 
     assert controller.state.sync_operation == SyncOperation.IDLE
-    assert controller.state.error_message == "failed"
-    assert refreshes == [True]
+    assert controller.state.refresh_state == RefreshState.REFRESHING
+    assert controller.state.error is not None
+    assert controller.state.error.message == "case collision"
+    assert refresh_calls == [controller.runner]
 
 
-def test_completed_mutating_command_refreshes_status(qt_app, monkeypatch) -> None:
+def test_completed_sync_command_keeps_pending_operation_until_verified(
+    qt_app,
+    monkeypatch,
+) -> None:
     controller = ApplicationController()
-    refreshes = []
-    monkeypatch.setattr(controller, "refresh", lambda: refreshes.append(True))
+    refresh_calls = []
+    monkeypatch.setattr(controller_module, "request_status", refresh_calls.append)
+    controller._set_state(sync_operation=SyncOperation.STARTING)
 
-    controller._handle_completed("sync_trigger", "")
+    controller._handle_completed(result("sync_start"))
 
-    assert refreshes == [True]
+    assert controller.state.sync_operation == SyncOperation.STARTING
+    assert controller.state.refresh_state == RefreshState.REFRESHING
+    assert refresh_calls == [controller.runner]
+
+
+def test_clear_error(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(
+        error=controller_module.ApplicationError("status", "boom")
+    )
+
+    controller.clear_error()
+
+    assert controller.state.error is None

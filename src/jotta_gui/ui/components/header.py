@@ -1,19 +1,21 @@
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from __future__ import annotations
 
-from jotta_gui.application.state import (
-    ApplicationState,
-    SyncMode,
-    SyncOperation,
-)
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+
+from jotta_gui.application.state import ApplicationState
+
+from .status import StatusPill
 
 
 class Header(QWidget):
+    refresh_requested = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("header")
 
-        self.title = QLabel("Jotta GUI")
+        self.title = QLabel("Overview")
         self.title.setObjectName("pageTitle")
 
         self.subtitle = QLabel("Your Jottacloud at a glance")
@@ -24,63 +26,30 @@ class Header(QWidget):
         text_layout.addWidget(self.title)
         text_layout.addWidget(self.subtitle)
 
-        self.connection = QLabel("● Disconnected")
-        self.connection.setObjectName("connectionStatus")
+        self.connection = StatusPill("Disconnected", "danger")
 
-        self.sync_status = QLabel("● Sync mode unknown")
-        self.sync_status.setObjectName("syncStatus")
-
-        status_layout = QVBoxLayout()
-        status_layout.setSpacing(4)
-        status_layout.addWidget(
-            self.connection,
-            alignment=Qt.AlignmentFlag.AlignRight,
-        )
-        status_layout.addWidget(
-            self.sync_status,
-            alignment=Qt.AlignmentFlag.AlignRight,
-        )
+        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.setObjectName("secondaryButton")
+        self.refresh_button.clicked.connect(self.refresh_requested.emit)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(32, 18, 32, 18)
+        layout.setContentsMargins(28, 16, 28, 16)
+        layout.setSpacing(12)
         layout.addLayout(text_layout)
         layout.addStretch()
-        layout.addLayout(status_layout)
+        layout.addWidget(self.connection)
+        layout.addWidget(self.refresh_button)
 
     def set_page(self, title: str, subtitle: str) -> None:
         self.title.setText(title)
         self.subtitle.setText(subtitle)
 
     def update_state(self, state: ApplicationState) -> None:
-        if state.connected:
-            self._set_status_label(self.connection, "● Connected", "#62c98a")
+        if state.refreshing:
+            self.connection.set_status("Refreshing…", "info")
+        elif state.connected:
+            self.connection.set_status("Connected", "success")
         else:
-            self._set_status_label(self.connection, "● Disconnected", "#e66b6b")
+            self.connection.set_status("Disconnected", "danger")
 
-        text, color = _sync_label(state)
-        self._set_status_label(self.sync_status, text, color)
-
-    @staticmethod
-    def _set_status_label(label: QLabel, text: str, color: str) -> None:
-        label.setText(text)
-        label.setStyleSheet(f"color: {color}; font-weight: 600;")
-
-
-def _sync_label(state: ApplicationState) -> tuple[str, str]:
-    pending = {
-        SyncOperation.STARTING: ("● Starting sync…", "#6173e8"),
-        SyncOperation.STOPPING: ("● Stopping sync…", "#6173e8"),
-        SyncOperation.TRIGGERING: ("● Syncing now…", "#6173e8"),
-    }
-    if state.sync_operation in pending:
-        return pending[state.sync_operation]
-
-    if state.status is not None and not state.status.sync.enabled:
-        return "● Sync disabled", "#e66b6b"
-
-    modes = {
-        SyncMode.AUTOMATIC: ("● Automatic sync", "#62c98a"),
-        SyncMode.TRIGGERED: ("● Manual sync", "#e6a75f"),
-        SyncMode.UNKNOWN: ("● Sync mode unknown", "#8b909a"),
-    }
-    return modes[state.sync_mode]
+        self.refresh_button.setEnabled(not state.refreshing and not state.sync_busy)

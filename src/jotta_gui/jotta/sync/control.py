@@ -6,13 +6,18 @@ if TYPE_CHECKING:
     from jotta_gui.jotta.runner import JottaRunner
 
 
-def sync_start(runner: JottaRunner) -> None:
-    runner.run("sync_start", ["sync", "start"])
+def start_sync(runner: JottaRunner, *, force: bool = False) -> None:
+    arguments = ["sync", "start"]
+    if force:
+        arguments.append("--force")
+    runner.run("sync_start", arguments)
 
 
-def sync_stop(runner: JottaRunner) -> None:
+def stop_sync(runner: JottaRunner) -> None:
     runner.run("sync_stop", ["sync", "stop"])
 
 
-def sync_trigger(runner: JottaRunner) -> None:
+def trigger_sync(runner: JottaRunner) -> None:
+    # This command can legitimately run for a long time. JottaRunner has no short
+    # command timeout and retains stdout/stderr on completion or failure.
     runner.run("sync_trigger", ["sync", "trigger"])

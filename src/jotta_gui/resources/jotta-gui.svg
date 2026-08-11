@@ -1,25 +1,16 @@
-
-
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="32" y1="32" x2="224" y2="224" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6D7CFF"></stop>
-      <stop offset="1" stop-color="#7A4DFF"></stop>
+      <stop stop-color="#6D7CFF"/>
+      <stop offset="1" stop-color="#7A4DFF"/>
     </linearGradient>
-
     <linearGradient id="cloud" x1="78" y1="82" x2="178" y2="162" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"></stop>
-      <stop offset="1" stop-color="#DDE5FF"></stop>
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDE5FF"/>
     </linearGradient>
   </defs>
-
-  <!-- Rounded square background -->
-  <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg)"></rect>
-
-  <!-- Cloud -->
-  <path d="M92 166C73.2 166 58 151.7 58 134C58 118.8 69.2 106 84.4 103.1C88.8 84.4 105.6 70 126 70C146.1 70 162.7 83.9 167.5 102C182.8 104 194 116.9 194 132.5C194 151 178.5 166 159.5 166H92Z" fill="url(#cloud)"></path>
-
-  <!-- Simple upward sync/backup mark -->
-  <path d="M128 150V112" stroke="#5B63F6" stroke-width="10" stroke-linecap="round"></path>
-  <path d="M112 127L128 111L144 127" stroke="#5B63F6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"></path>
+  <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#bg)"/>
+  <path d="M92 166C73.2 166 58 151.7 58 134C58 118.8 69.2 106 84.4 103.1C88.8 84.4 105.6 70 126 70C146.1 70 162.7 83.9 167.5 102C182.8 104 194 116.9 194 132.5C194 151 178.5 166 159.5 166H92Z" fill="url(#cloud)"/>
+  <path d="M128 150V112" stroke="#5B63F6" stroke-width="10" stroke-linecap="round"/>
+  <path d="M112 127L128 111L144 127" stroke="#5B63F6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

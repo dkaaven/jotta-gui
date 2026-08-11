@@ -1,15 +1,13 @@
 from .state import (
+    ApplicationError,
     ApplicationState,
-    SyncActivity,
-    SyncMode,
+    RefreshState,
     SyncOperation,
-    sync_mode_from_automatic,
 )
 
 __all__ = [
+    "ApplicationError",
     "ApplicationState",
-    "SyncActivity",
-    "SyncMode",
+    "RefreshState",
     "SyncOperation",
-    "sync_mode_from_automatic",
 ]

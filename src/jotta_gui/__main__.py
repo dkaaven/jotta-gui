@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 import logging
 from pathlib import Path
@@ -23,9 +24,7 @@ def main() -> int:
     package_dir = Path(__file__).resolve().parent
     app.setWindowIcon(QIcon(str(package_dir / "resources" / "jotta-gui.svg")))
     app.setStyleSheet(
-        (package_dir / "ui" / "styles" / "dark.qss").read_text(
-            encoding="utf-8"
-        )
+        (package_dir / "ui" / "styles" / "dark.qss").read_text(encoding="utf-8")
     )
 
     window = MainWindow()
