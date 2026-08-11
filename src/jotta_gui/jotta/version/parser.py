@@ -8,6 +8,9 @@ _FIELD_NAMES = {
     "jottad version": "daemon_version",
     "remote version": "remote_version",
     "release notes": "release_notes_url",
+    "jottad executable": "daemon_executable",
+    "jottad appdata": "appdata_path",
+    "jottad logfile": "logfile_path",
 }
 
 
@@ -37,4 +40,7 @@ def parse_version_output(output: str) -> VersionInfo:
         daemon_version=values.get("daemon_version"),
         remote_version=values.get("remote_version"),
         release_notes_url=values.get("release_notes_url"),
+        daemon_executable=values.get("daemon_executable"),
+        appdata_path=values.get("appdata_path"),
+        logfile_path=values.get("logfile_path"),
     )

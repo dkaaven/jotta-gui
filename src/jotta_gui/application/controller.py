@@ -10,11 +10,13 @@ from jotta_gui.application.state import (
     ApplicationState,
     BackupIgnoreOperation,
     BackupIgnoreState,
+    ConfigOperation,
     RefreshState,
     SyncOperation,
     VersionCheckState,
 )
 from jotta_gui.jotta.backup.ignores import add_ignore, list_ignores, remove_ignore
+from jotta_gui.jotta.config import parse_config_output, request_config, set_config_value
 from jotta_gui.jotta.models import JottaSnapshot
 from jotta_gui.jotta.runner import CommandResult, JottaRunner
 from jotta_gui.jotta.snapshot import build_snapshot
@@ -71,6 +73,33 @@ class ApplicationController(QObject):
             version_error=None,
         )
         request_version(self.runner)
+
+    def load_config(self) -> None:
+        """Read the authoritative daemon configuration from jotta-cli."""
+
+        if self.state.config_busy:
+            return
+        self._set_state(
+            config_operation=ConfigOperation.LOADING,
+            config_saving_setting=None,
+            config_error=None,
+        )
+        request_config(self.runner)
+
+    def set_config(self, setting: str, value: str) -> None:
+        """Set one daemon configuration value and then read all values back."""
+
+        setting = setting.strip()
+        value = value.strip()
+        if not setting or not value or self.state.config_busy:
+            return
+
+        self._set_state(
+            config_operation=ConfigOperation.SAVING,
+            config_saving_setting=setting,
+            config_error=None,
+        )
+        set_config_value(self.runner, setting, value)
 
     def start_sync(self, *, force: bool = False) -> None:
         if self.state.sync_busy:
@@ -198,6 +227,19 @@ class ApplicationController(QObject):
             self._handle_version_result(result)
             return
 
+        if command == "config_list":
+            self._handle_config_result(result)
+            return
+
+        if command == "config_set":
+            self._set_state(
+                config_operation=ConfigOperation.LOADING,
+                config_saving_setting=None,
+                config_error=None,
+            )
+            request_config(self.runner)
+            return
+
         if command == "backup_ignores_list":
             current = self.state.backup_ignores
             # The exact stream used by ``ignores list`` has not yet been captured.
@@ -238,6 +280,26 @@ class ApplicationController(QObject):
         # the safest generic behavior while this controller remains small.
         self._request_refresh(preserve_error=False)
 
+
+    def _handle_config_result(self, result: CommandResult) -> None:
+        output = result.stdout or result.stderr
+        try:
+            config = parse_config_output(output)
+        except ValueError as exc:
+            logger.warning("Could not parse jotta-cli config output: %s", exc)
+            self._set_state(
+                config_operation=ConfigOperation.IDLE,
+                config_saving_setting=None,
+                config_error=str(exc),
+            )
+            return
+
+        self._set_state(
+            config=config,
+            config_operation=ConfigOperation.IDLE,
+            config_saving_setting=None,
+            config_error=None,
+        )
 
     def _handle_version_result(self, result: CommandResult) -> None:
         try:
@@ -333,6 +395,15 @@ class ApplicationController(QObject):
             self._set_state(
                 version_check_state=VersionCheckState.IDLE,
                 version_error=error.message,
+            )
+            return
+
+        if command in {"config_list", "config_set"}:
+            logger.warning("Config command failed [%s]: %s", command, error.message)
+            self._set_state(
+                config_operation=ConfigOperation.IDLE,
+                config_saving_setting=None,
+                config_error=error.message,
             )
             return
 

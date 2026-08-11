@@ -16,6 +16,9 @@ class VersionInfo:
     daemon_version: str | None = None
     remote_version: str | None = None
     release_notes_url: str | None = None
+    daemon_executable: str | None = None
+    appdata_path: str | None = None
+    logfile_path: str | None = None
 
     @property
     def update_available(self) -> bool | None:

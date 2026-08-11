@@ -11,7 +11,7 @@ PAGE_INFO = {
     "overview": ("Overview", "Account, storage and protection at a glance"),
     "sync": ("Sync", "Continuous and triggered synchronization"),
     "backup": ("Backup", "Folders protected by continuous backup"),
-    "settings": ("Settings", "Account and device information"),
+    "settings": ("Settings", "Jottad configuration and local client information"),
 }
 
 
@@ -65,6 +65,9 @@ class MainWindow(QMainWindow):
             self.controller.remove_backup_ignore
         )
 
+        self.settings_page.config_requested.connect(self.controller.load_config)
+        self.settings_page.config_set_requested.connect(self.controller.set_config)
+
     def _build_layout(self) -> None:
         content = QWidget()
         content.setObjectName("content")
@@ -92,6 +95,8 @@ class MainWindow(QMainWindow):
         self.header.set_page(*info)
         if page_name == "backup":
             self.backup_page.activate()
+        elif page_name == "settings":
+            self.settings_page.activate()
 
     def update_state(self, state: ApplicationState) -> None:
         self.header.update_state(state)

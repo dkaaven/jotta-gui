@@ -9,10 +9,12 @@ from jotta_gui.application.state import (
     ApplicationError,
     ApplicationState,
     BackupIgnoreState,
+    ConfigOperation,
     RefreshState,
     SyncOperation,
     VersionCheckState,
 )
+from jotta_gui.jotta.config import ConfigEntry, JottaConfig
 from jotta_gui.jotta.models import (
     AccountStatus,
     BackupStatus,
@@ -140,11 +142,24 @@ def test_backup_page_renders_snapshot_rows(qt_app) -> None:
     assert page.rows.count() == 1
 
 
-def test_settings_page_uses_account_snapshot(qt_app) -> None:
+def test_settings_page_uses_runtime_snapshot(qt_app) -> None:
     page = SettingsPage()
-    page.update_state(_state())
-    assert page.values["email"].text() == "user@example.com"
-    assert page.values["device"].text() == "Bob"
+    page.update_state(
+        _state(
+            version=VersionInfo(
+                cli_version="0.17.176206",
+                daemon_version="0.17.176206",
+                appdata_path="/home/example/.jottad",
+                logfile_path="/home/example/.jottad/jottabackup.log",
+            )
+        )
+    )
+
+    assert page.runtime_values["email"].text() == "user@example.com"
+    assert page.runtime_values["device"].text() == "Bob"
+    assert page.runtime_values["cli_version"].text() == "0.17.176206"
+    assert page.runtime_values["sync_root"].text() == "/home/example/Jotta"
+    assert page.runtime_values["logfile"].text().endswith("jottabackup.log")
 
 
 def test_sync_page_offers_force_start_only_after_start_failure(qt_app) -> None:
@@ -270,3 +285,79 @@ def test_overview_shows_version_checking(qt_app) -> None:
     )
 
     assert page.version_pill.text() == "Checking…"
+
+
+def _config() -> JottaConfig:
+    entries = (
+        ConfigEntry("downloadrate", "unlimited"),
+        ConfigEntry("uploadrate", "5m"),
+        ConfigEntry("checksumreadrate", "52.43MB/s"),
+        ConfigEntry("maxdownloads", "12"),
+        ConfigEntry("maxuploads", "12"),
+        ConfigEntry("scaninterval", "30m"),
+        ConfigEntry("ignorehiddenfiles", "false"),
+        ConfigEntry("slowmomode", "10"),
+        ConfigEntry("logscanignores", "true"),
+        ConfigEntry("logtransfers", "false"),
+    )
+    raw = "\n".join(f"{entry.name} : {entry.value}" for entry in entries)
+    return JottaConfig(entries=entries, raw_output=raw)
+
+
+def test_settings_page_activation_requests_config(qt_app) -> None:
+    page = SettingsPage()
+    requested = []
+    page.config_requested.connect(lambda: requested.append(True))
+
+    page.activate()
+
+    assert requested == [True]
+
+
+def test_settings_page_renders_config_values(qt_app) -> None:
+    page = SettingsPage()
+    page.update_state(_state(config=_config()))
+
+    assert page.setting_inputs["uploadrate"].text() == "5m"
+    assert page.setting_inputs["maxuploads"].text() == "12"
+    assert page.setting_inputs["ignorehiddenfiles"].currentText() == "false"
+    assert page.setting_inputs["logscanignores"].currentText() == "true"
+    assert "scaninterval : 30m" in page.raw_config.toPlainText()
+    assert page.setting_apply_buttons["uploadrate"].isEnabled() is True
+
+
+def test_settings_page_apply_emits_exact_setting_and_value(qt_app) -> None:
+    page = SettingsPage()
+    requested = []
+    page.config_set_requested.connect(
+        lambda setting, value: requested.append((setting, value))
+    )
+    page.update_state(_state(config=_config()))
+    page.setting_inputs["uploadrate"].setText("10m")
+
+    page.setting_apply_buttons["uploadrate"].click()
+
+    assert requested == [("uploadrate", "10m")]
+
+
+def test_settings_page_disables_editors_during_config_workflow(qt_app) -> None:
+    page = SettingsPage()
+    page.update_state(
+        _state(
+            config=_config(),
+            config_operation=ConfigOperation.SAVING,
+            config_saving_setting="scaninterval",
+        )
+    )
+
+    assert page.refresh_config_button.isEnabled() is False
+    assert page.setting_apply_buttons["scaninterval"].isEnabled() is False
+    assert page.setting_inputs["scaninterval"].isEnabled() is False
+    assert page.config_status.text() == "Saving scaninterval…"
+
+
+def test_settings_page_shows_local_config_error(qt_app) -> None:
+    page = SettingsPage()
+    page.update_state(_state(config=_config(), config_error="invalid value"))
+
+    assert "invalid value" in page.config_status.text()

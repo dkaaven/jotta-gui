@@ -11,6 +11,7 @@ from jotta_gui.jotta.backup import (
     scan_backups,
     test_ignore as run_ignore_test,
 )
+from jotta_gui.jotta.config import request_config, set_config_value
 from jotta_gui.jotta.status.query import request_status
 from jotta_gui.jotta.sync.control import start_sync, stop_sync, trigger_sync
 from jotta_gui.jotta.sync.query import request_sync_runtime_status
@@ -31,6 +32,11 @@ class RecordingRunner:
     [
         (lambda r: request_status(r), ("status", ["status", "--json"])),
         (lambda r: request_version(r), ("version", ["version"])),
+        (lambda r: request_config(r), ("config_list", ["config"])),
+        (
+            lambda r: set_config_value(r, "uploadrate", "5m"),
+            ("config_set", ["config", "uploadrate", "5m"]),
+        ),
         (
             lambda r: request_sync_runtime_status(r),
             ("sync_runtime_status", ["status"]),

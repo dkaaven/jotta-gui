@@ -241,3 +241,17 @@ QPlainTextEdit:disabled {
 QPlainTextEdit#ruleOutput {
     font-family: monospace;
 }
+
+
+QFrame#settingRow {
+    border-top: 1px solid #252b36;
+}
+
+QLineEdit#settingInput,
+QComboBox#settingInput {
+    min-width: 150px;
+}
+
+QPlainTextEdit#configOutput {
+    font-family: monospace;
+}

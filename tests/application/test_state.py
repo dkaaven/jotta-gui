@@ -5,6 +5,7 @@ import pytest
 from jotta_gui.application.state import (
     ApplicationError,
     ApplicationState,
+    ConfigOperation,
     RefreshState,
     SyncOperation,
     VersionCheckState,
@@ -21,6 +22,11 @@ def test_application_state_defaults() -> None:
     assert state.version_check_state == VersionCheckState.IDLE
     assert state.version_error is None
     assert state.version_checking is False
+    assert state.config is None
+    assert state.config_operation == ConfigOperation.IDLE
+    assert state.config_saving_setting is None
+    assert state.config_error is None
+    assert state.config_busy is False
     assert state.refresh_state == RefreshState.IDLE
     assert state.sync_operation == SyncOperation.IDLE
     assert state.backup_ignores.backup_name is None
@@ -35,11 +41,13 @@ def test_application_state_reports_busy_properties() -> None:
         refresh_state=RefreshState.REFRESHING,
         sync_operation=SyncOperation.TRIGGERING,
         version_check_state=VersionCheckState.CHECKING,
+        config_operation=ConfigOperation.LOADING,
     )
 
     assert state.refreshing is True
     assert state.sync_busy is True
     assert state.version_checking is True
+    assert state.config_busy is True
 
 
 def test_application_error_is_structured() -> None:

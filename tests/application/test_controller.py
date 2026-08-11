@@ -11,6 +11,7 @@ from jotta_gui.application.controller import ApplicationController
 from jotta_gui.application.state import (
     BackupIgnoreOperation,
     BackupIgnoreState,
+    ConfigOperation,
     RefreshState,
     SyncOperation,
     VersionCheckState,
@@ -489,4 +490,89 @@ def test_invalid_version_output_becomes_unknown_without_global_error(qt_app) -> 
     assert controller.state.version is None
     assert controller.state.version_check_state == VersionCheckState.IDLE
     assert "no recognized version fields" in (controller.state.version_error or "")
+    assert controller.state.error is None
+
+
+def test_load_config_requests_authoritative_daemon_config(qt_app, monkeypatch) -> None:
+    controller = ApplicationController()
+    calls = []
+    monkeypatch.setattr(controller_module, "request_config", calls.append)
+
+    controller.load_config()
+
+    assert controller.state.config_operation == ConfigOperation.LOADING
+    assert controller.state.config_error is None
+    assert calls == [controller.runner]
+
+
+def test_config_result_updates_application_state(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(config_operation=ConfigOperation.LOADING)
+
+    controller._handle_completed(
+        result(
+            "config_list",
+            "downloadrate : unlimited\n"
+            "uploadrate : 5m\n"
+            "maxuploads : 12\n"
+            "logscanignores : true",
+        )
+    )
+
+    assert controller.state.config is not None
+    assert controller.state.config.get("uploadrate") == "5m"
+    assert controller.state.config.get("maxuploads") == "12"
+    assert controller.state.config_operation == ConfigOperation.IDLE
+    assert controller.state.config_error is None
+
+
+def test_set_config_requests_change_then_reloads_all_values(qt_app, monkeypatch) -> None:
+    controller = ApplicationController()
+    set_calls = []
+    list_calls = []
+    monkeypatch.setattr(
+        controller_module,
+        "set_config_value",
+        lambda runner, setting, value: set_calls.append((runner, setting, value)),
+    )
+    monkeypatch.setattr(controller_module, "request_config", list_calls.append)
+
+    controller.set_config("uploadrate", "5m")
+
+    assert controller.state.config_operation == ConfigOperation.SAVING
+    assert controller.state.config_saving_setting == "uploadrate"
+    assert set_calls == [(controller.runner, "uploadrate", "5m")]
+
+    controller._handle_completed(result("config_set"))
+
+    assert controller.state.config_operation == ConfigOperation.LOADING
+    assert controller.state.config_saving_setting is None
+    assert list_calls == [controller.runner]
+
+
+def test_config_failure_is_local_to_settings(qt_app) -> None:
+    controller = ApplicationController()
+    errors = []
+    controller.command_error.connect(errors.append)
+    controller._set_state(config_operation=ConfigOperation.SAVING)
+
+    controller._handle_failed(
+        result("config_set", stderr="invalid config value", exit_code=1)
+    )
+
+    assert controller.state.config_operation == ConfigOperation.IDLE
+    assert controller.state.config_error == "invalid config value"
+    assert controller.state.error is None
+    assert errors == []
+
+
+def test_invalid_config_output_is_local_parse_error(qt_app) -> None:
+    controller = ApplicationController()
+    controller._set_state(config_operation=ConfigOperation.LOADING)
+
+    controller._handle_completed(result("config_list", "unexpected output"))
+
+    assert controller.state.config is None
+    assert controller.state.config_operation == ConfigOperation.IDLE
+    assert "no recognized settings" in (controller.state.config_error or "")
     assert controller.state.error is None

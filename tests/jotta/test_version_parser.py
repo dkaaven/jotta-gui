@@ -47,6 +47,9 @@ def test_parse_current_output_without_remote_version_is_up_to_date() -> None:
         daemon_version="0.17.176206",
         remote_version=None,
         release_notes_url="https://docs.jottacloud.com/articles/1461561",
+        daemon_executable="/usr/bin/jottad",
+        appdata_path="/home/example/.jottad",
+        logfile_path="/home/example/.jottad/jottabackup.log",
     )
     assert version.update_available is False
 

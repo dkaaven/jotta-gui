@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from jotta_gui.jotta.config import JottaConfig
 from jotta_gui.jotta.models import JottaSnapshot
 from jotta_gui.jotta.version import VersionInfo
 from jotta_gui.system.storage import DiskUsage
@@ -29,6 +30,14 @@ class VersionCheckState(StrEnum):
 
     IDLE = "idle"
     CHECKING = "checking"
+
+
+class ConfigOperation(StrEnum):
+    """Application-owned state for daemon configuration workflows."""
+
+    IDLE = "idle"
+    LOADING = "loading"
+    SAVING = "saving"
 
 
 class BackupIgnoreOperation(StrEnum):
@@ -87,6 +96,11 @@ class ApplicationState:
     version_check_state: VersionCheckState = VersionCheckState.IDLE
     version_error: str | None = None
 
+    config: JottaConfig | None = None
+    config_operation: ConfigOperation = ConfigOperation.IDLE
+    config_saving_setting: str | None = None
+    config_error: str | None = None
+
     refresh_state: RefreshState = RefreshState.IDLE
     sync_operation: SyncOperation = SyncOperation.IDLE
     backup_ignores: BackupIgnoreState = field(default_factory=BackupIgnoreState)
@@ -104,3 +118,7 @@ class ApplicationState:
     @property
     def version_checking(self) -> bool:
         return self.version_check_state == VersionCheckState.CHECKING
+
+    @property
+    def config_busy(self) -> bool:
+        return self.config_operation != ConfigOperation.IDLE
