@@ -22,6 +22,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--import-mode=importlib"
 markers = [
     "qt: tests that require PySide6/Qt",
     "captured: tests that validate captured jotta-cli output",
