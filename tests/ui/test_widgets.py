@@ -26,7 +26,7 @@ from jotta_gui.jotta.models import (
 )
 from jotta_gui.jotta.version import VersionInfo
 from jotta_gui.system.storage import DiskUsage
-from jotta_gui.ui.components import ErrorBanner, Header
+from jotta_gui.ui.components import ErrorBanner, Header, Sidebar
 from jotta_gui.ui.pages import BackupPage, OverviewPage, SettingsPage, SyncPage
 
 pytestmark = pytest.mark.qt
@@ -361,3 +361,9 @@ def test_settings_page_shows_local_config_error(qt_app) -> None:
     page.update_state(_state(config=_config(), config_error="invalid value"))
 
     assert "invalid value" in page.config_status.text()
+
+
+def test_sidebar_marks_demo_mode(qt_app) -> None:
+    sidebar = Sidebar(demo_mode=True)
+
+    assert sidebar.caption.text() == "Demo mode · dummy data"

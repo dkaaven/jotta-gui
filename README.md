@@ -1,62 +1,61 @@
 ⚠️ ChatGPT was heavily used, this is an AI assisted repo ⚠️
+<<<<<<< HEAD
 
 # Jotta GUI
+=======
+>>>>>>> bc20997 (release: prepare v0.2.1)
 
-A PySide6 desktop interface for `jotta-cli`.
+# Jotta GUI
 
 This is my playground to test and learn. I use ChatGPT to support me on this journey.
 You are free to copy and play around on your own.
 
-The application uses a layered architecture:
+## Screenshots
 
-```text
-UI
- ↓
-Application
- ↓
-Jotta / System
+### Overview
+
+![Jotta GUI overview](docs/screenshots/overview.png)
+
+### Sync
+
+![Sync management](docs/screenshots/sync.png)
+
+### Backup and ignore rules
+
+![Backup ignore rules](docs/screenshots/backup.png)
+
+### Settings
+
+![Jotta GUI settings](docs/screenshots/settings.png)
+
+## Requrements for trying
+- Debian/Ubuntu based Distro 
+
+```
+sudo apt install ./jotta-gui_0.2.0_amd64.deb
 ```
 
-Run the application with:
+## Requirements for devs
+- python 3.13
+- pyside6
+- pytest
+- [uv](https://github.com/astral-sh/uv) - for developers
 
+
+### Run
 ```bash
 uv run jotta-gui
 ```
 
-## Testing
+### Testing
 
 Run the full test suite:
 
 ```bash
 uv run pytest
 ```
-
-Run only tests that do not require Qt:
-
-```bash
-uv run pytest -m "not qt"
-```
-
-Run only Qt-dependent controller, runner, and widget tests:
+Demo mode, using dummy data
 
 ```bash
-uv run pytest -m qt
+uv run jotta-gui --demo
 ```
-
-The Qt tests use the offscreen platform automatically so they can run headlessly.
-
-### Captured CLI fixtures
-
-Capture sanitized output from the local CLI:
-
-```bash
-uv run python tools/capture_cli_fixtures.py linux-active --sync-state active
-```
-
-Run only tests backed by captured `jotta-cli` output:
-
-```bash
-uv run pytest -m captured
-```
-
-See `tests/fixtures/README.md` before committing captured fixtures.

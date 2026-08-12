@@ -9,3 +9,6 @@ uv.lock
 *.txt
 temp/
 get*.sh
+# Build artifacts
+dist/
+build/

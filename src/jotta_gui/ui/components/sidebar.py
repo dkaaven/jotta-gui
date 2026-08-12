@@ -14,7 +14,7 @@ class Sidebar(QWidget):
         ("settings", "Settings"),
     )
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, demo_mode: bool = False) -> None:
         super().__init__(parent)
         self.setObjectName("sidebar")
         self.setFixedWidth(210)
@@ -27,9 +27,9 @@ class Sidebar(QWidget):
         brand.setObjectName("sidebarTitle")
         layout.addWidget(brand)
 
-        caption = QLabel("Desktop client")
-        caption.setObjectName("sidebarCaption")
-        layout.addWidget(caption)
+        self.caption = QLabel("Demo mode · dummy data" if demo_mode else "Desktop client")
+        self.caption.setObjectName("sidebarCaption")
+        layout.addWidget(self.caption)
         layout.addSpacing(22)
 
         self.group = QButtonGroup(self)

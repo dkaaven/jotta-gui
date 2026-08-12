@@ -1,0 +1,11 @@
+Package: jotta-gui
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: @ARCHITECTURE@
+Maintainer: @MAINTAINER@
+Depends: jotta-cli, libc6, libgl1, libdbus-1-3, libxkbcommon0, libxcb1
+Description: Desktop interface for Jottacloud CLI
+ Jotta GUI is a PySide6 desktop interface for jotta-cli and jottad.
+ It provides account and storage overview, Sync controls, Backup ignore-rule
+ management, daemon settings, and Jottacloud CLI version status.

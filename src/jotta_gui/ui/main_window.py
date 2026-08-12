@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
+from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 
 from jotta_gui.application.controller import ApplicationController
@@ -16,13 +19,18 @@ PAGE_INFO = {
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        controller_factory: Callable[[QObject | None], QObject] = ApplicationController,
+        demo_mode: bool = False,
+    ) -> None:
         super().__init__()
-        self.setWindowTitle("Jotta GUI")
+        self.setWindowTitle("Jotta GUI — Demo" if demo_mode else "Jotta GUI")
         self.resize(1120, 780)
         self.setMinimumSize(920, 620)
 
-        self.sidebar = Sidebar()
+        self.sidebar = Sidebar(demo_mode=demo_mode)
         self.header = Header()
         self.error_banner = ErrorBanner()
         self.pages = QStackedWidget()
@@ -40,7 +48,7 @@ class MainWindow(QMainWindow):
         for page in self.page_widgets.values():
             self.pages.addWidget(page)
 
-        self.controller = ApplicationController(self)
+        self.controller = controller_factory(self)
         self._connect_signals()
         self._build_layout()
         self.change_page("overview")
