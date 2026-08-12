@@ -1,5 +1,4 @@
 ⚠️ ChatGPT was heavily used, this is an AI assisted repo ⚠️
-<<<<<<< HEAD
 
 # Jotta GUI
 =======
