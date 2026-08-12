@@ -1,10 +1,6 @@
 ⚠️ ChatGPT was heavily used, this is an AI assisted repo ⚠️
 
 # Jotta GUI
-=======
->>>>>>> bc20997 (release: prepare v0.2.1)
-
-# Jotta GUI
 
 This is my playground to test and learn. I use ChatGPT to support me on this journey.
 You are free to copy and play around on your own.
