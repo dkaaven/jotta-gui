@@ -1,3 +1,5 @@
+⚠️ ChatGPT was heavily used, this is an AI assisted repo ⚠️
+
 # Jotta GUI
 
 A PySide6 desktop interface for `jotta-cli`.
